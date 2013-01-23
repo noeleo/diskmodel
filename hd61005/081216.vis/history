@@ -1,0 +1,9 @@
+IDL/MIR-to-MIRIAD, Version: Beta
+based on library version xx-xx-xx
+Target Source: HD61005
+LO Frequency:        220.50705 GHz
+UVCAT: Miriad UvCat: version 1.0 30-Jun-06
+UVCAT: Executed on: 2011-07-29T11:38:32.0
+UVCAT: Command line inputs follow:
+UVCAT:   vis=hd61005.lc.vis,hd61005.uc.vis
+UVCAT:   out=081216.vis
