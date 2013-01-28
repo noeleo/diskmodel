@@ -11,7 +11,7 @@ import warnings
 # TEMPO: nonreduced chi squared
 
 class Disk:
-        
+
     stefbolt_const = 5.67e-8
     h_const = 6.6260695729e-34
     k_const = 1.380648813e-23
@@ -117,6 +117,15 @@ class Disk:
         #print "Average % error in IRS Spectrum =",self.ast_avg_err,"%" #Turns out it's 5.89%
         f.close()
         
+        kap = {}
+        albedo = {}
+        file_lambda = pyfits.open('opacity/lambda.fits')
+        file_kappa = pyfits.open('opacity/kappa.fits')
+        file_albedo = pyfits.open('opacity/albedo.fits')
+        for i in range(len(file_lambda[0].data)):
+            kap[file_lambda[0].data[i]] = file_kappa[0].data[i]
+            albedo[file_lambda[0].data[i]] = file_albedo[0].data[i]
+
         # generate interpolation function
         loglamb = map (math.log10, self.data_lambda)
         logflux = map(math.log10, self.data_flux)
