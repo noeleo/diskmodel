@@ -6,6 +6,7 @@ from scipy.interpolate import interp1d
 from scipy.special import gamma
 import warnings
 import pyfits
+import time
 
 #from pyx import *
 
@@ -254,6 +255,7 @@ class Disk:
         return grainTemperature
     '''    
     def calculateGrainTemperature(self, radius):
+        x = time.time()
         lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
         # initialize temperature for binary search
         start = 0.0
@@ -262,9 +264,11 @@ class Disk:
         threshold = 1.0
         while (true):
             temp = (end-start)/2
-            rhs = integrate.quad(lambda l: qFunction(l)*planckFunction(temp, l), 0, numpy.inf)[0]
+            rhs = integrate.quad(lambda l: qFunction(l)*self.calculatePlanckFunction(temp, l), 0, numpy.inf)[0]
             diff = rhs-lhs
             if math.abs(diff) < threshold:
+                y = time.time()
+                print 'took ' + str(y-x) + ' seconds'
                 return temp
             elif diff > 0:
                 # decrease t
@@ -310,6 +314,12 @@ class Disk:
         except OverflowError:
             return 0
         return asteroidBlackbody
+
+    def calculatePlanckFunction(self, temperature, lamma):
+        numerator = 2*h_const*(c_const**2)
+        exponential = h_const*c_const/(lamma*k_const*temperature)
+        denominator = (lamma**5)*(math.e**exponential-1)
+        return numerator/denominator
     
     def generateAsteroids(self):
         x = numpy.arange(-7, -2, 0.01)
