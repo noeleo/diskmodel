@@ -125,10 +125,12 @@ class Disk:
         q = []
         for i in range(len(lambder)):
             q.append(
-                # 1e-6 is temporary grain size holder
-                float(4/3) * kapper[i] * self.grainDensity * 1e-6 * (1-albeder[i])
+                float(4/3) * kapper[i] * self.grainDensity * self.grainSize * (1-albeder[i])
                 )
-        self.qFunction = interp1d(lambder, q, bounds_error=False, fill_value=0)
+        self.qFunction = interp1d(lambder, q, bounds_error=False, fill_value=0) 
+        self.lammax = max(lambder)
+        self.lammin = min(lambder)
+        #Note that we are ignoring all emission for wavelengths above those given in lambder.
 
         # generate interpolation function
         loglamb = map (math.log10, self.data_lambda)
@@ -240,24 +242,10 @@ class Disk:
             return 0
         return grainBlackbody
     
-    """
-    return the temperature of a grain, in Kelvin, at a given radius
-    """
-    '''
-    def calculateGrainTemperature(self, radius):
-        lambdaNought = 2*math.pi*self.grainSize
-        expr_1 = self.stefbolt_const*((lambdaNought*self.k_const/(self.h_const*self.c_const))**self.grainEfficiency)
-        # compute factorial(grainEfficiency+3) = gamma(grainEfficiency+4)
-        expr_2 = gamma(self.grainEfficiency + 4)
-        numerator = self.starLuminosity*(math.pi**3)
-        denominator = 240*(radius**2)*expr_1*expr_2*self.zeta
-        grainTemperature = (numerator/denominator)**(1/(self.grainEfficiency+4))
-        return grainTemperature
-    '''    
     def calculatePlanckFunction(self, temperature, lamma):
         numerator = 2*self.h_const*(self.c_const**2)
-        exponential = self.h_const*self.c_const/(lamma*self.k_const*temperature)
-        denominator = (lamma**5)*(math.e**exponential-1)
+        exponent = self.h_const*self.c_const/(lamma*self.k_const*temperature)
+        denominator = (lamma**5)*(math.e**exponent-1)
         return numerator/denominator
     
     def calculateGrainTemperature(self, radius):
@@ -266,12 +254,12 @@ class Disk:
         # initialize temperature for binary search
         start = 0.0
         end = 1000.0
-        # make threshold for left and right hand side, no idea for now
-        threshold = 1000.0
+        # make threshold 1% of desired value
+        threshold = 0.01*lhs
         while True:
             temp = (end-start)/2
             print "Temperature =", temp
-            rhs = integrate.quad(lambda l: self.qFunction(l)*self.calculatePlanckFunction(temp, l), 0, numpy.inf)[0]
+            rhs = integrate.quad(lambda l: self.qFunction(l)*self.calculatePlanckFunction(temp, l), self.lammin, self.lammax)[0]
             print "Right =", rhs, "Left =", lhs
             diff = rhs-lhs
             if math.fabs(diff) < threshold:
