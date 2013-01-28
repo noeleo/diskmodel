@@ -119,16 +119,16 @@ class Disk:
         #print "Average % error in IRS Spectrum =",self.ast_avg_err,"%" #Turns out it's 5.89%
         f.close()
         
-        lambder = [float(x)*10e-6 for x in pyfits.open('opacity/lambda.fits')]
-        kapper = [float(x)/10 for x in pyfits.open('opacity/kappa.fits')]
-        albeder = [float(x) for x in pyfits.open('opacity/albedo.fits')]
+        lambder = [float(x)*10e-6 for x in pyfits.open('opacity/lambda.fits')[0].data]
+        kapper = [float(x)/10 for x in pyfits.open('opacity/kappa.fits')[0].data]
+        albeder = [float(x) for x in pyfits.open('opacity/albedo.fits')[0].data]
         q = []
         for i in range(len(lambder)):
             q.append(
                 # 1e-6 is temporary grain size holder
                 float(4/3) * kapper[i] * self.grainDensity * 1e-6 * (1-albeder[i])
                 )
-        qFunction = interp1d(lambder, q, bounds_error=False, fill_value=0)
+        self.qFunction = interp1d(lambder, q, bounds_error=False, fill_value=0)
 
         # generate interpolation function
         loglamb = map (math.log10, self.data_lambda)
@@ -203,7 +203,7 @@ class Disk:
             return 0
         # convert frequency to GHz
         lamma = self.c_const/(frequency*1e9)
-        flux = 1e26*qFunction(lamma)*(self.grainSize**2)*self.calculateGrainDistribution(radius)*self.calculateGrainBlackbody(radius, lamma)/(self.starDistance**2)
+        flux = 1e26*self.qFunction(lamma)*(self.grainSize**2)*self.calculateGrainDistribution(radius)*self.calculateGrainBlackbody(radius, lamma)/(self.starDistance**2)
         return flux
     
     """
@@ -216,7 +216,7 @@ class Disk:
                                                  *self.calculateGrainBlackbody(radius, lamma), self.innerRadius, self.outerRadius)[0]
         # scale by nu
         nu = self.c_const/lamma
-        flux = qFunction(lamma)*nu*2*math.pi*fluxIntegral*1e26*(self.grainSize**2)/(self.starDistance**2)
+        flux = self.qFunction(lamma)*nu*2*math.pi*fluxIntegral*1e26*(self.grainSize**2)/(self.starDistance**2)
         return flux
     
     """
@@ -254,6 +254,12 @@ class Disk:
         grainTemperature = (numerator/denominator)**(1/(self.grainEfficiency+4))
         return grainTemperature
     '''    
+    def calculatePlanckFunction(self, temperature, lamma):
+        numerator = 2*self.h_const*(self.c_const**2)
+        exponential = self.h_const*self.c_const/(lamma*self.k_const*temperature)
+        denominator = (lamma**5)*(math.e**exponential-1)
+        return numerator/denominator
+    
     def calculateGrainTemperature(self, radius):
         x = time.time()
         lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
@@ -261,12 +267,14 @@ class Disk:
         start = 0.0
         end = 1000.0
         # make threshold for left and right hand side, no idea for now
-        threshold = 1.0
-        while (true):
+        threshold = 1000.0
+        while True:
             temp = (end-start)/2
-            rhs = integrate.quad(lambda l: qFunction(l)*self.calculatePlanckFunction(temp, l), 0, numpy.inf)[0]
+            print "Temperature =", temp
+            rhs = integrate.quad(lambda l: self.qFunction(l)*self.calculatePlanckFunction(temp, l), 0, numpy.inf)[0]
+            print "Right =", rhs, "Left =", lhs
             diff = rhs-lhs
-            if math.abs(diff) < threshold:
+            if math.fabs(diff) < threshold:
                 y = time.time()
                 print 'took ' + str(y-x) + ' seconds'
                 return temp
@@ -314,12 +322,6 @@ class Disk:
         except OverflowError:
             return 0
         return asteroidBlackbody
-
-    def calculatePlanckFunction(self, temperature, lamma):
-        numerator = 2*h_const*(c_const**2)
-        exponential = h_const*c_const/(lamma*k_const*temperature)
-        denominator = (lamma**5)*(math.e**exponential-1)
-        return numerator/denominator
     
     def generateAsteroids(self):
         x = numpy.arange(-7, -2, 0.01)

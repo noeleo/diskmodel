@@ -5,7 +5,6 @@ from scipy import integrate
 from scipy.interpolate import interp1d
 from scipy.special import gamma
 import warnings
-import pyfits
 
 # A copy of disk.py with the addition of a grain size distribution.  Here, grainSize represents the minimum grain size, whereas grainSize_max represents the maximum.
 
@@ -116,17 +115,6 @@ class Disk:
         self.ast_avg_err = numpy.mean(self.IRS_error)
         #print "Average % error in IRS Spectrum =",self.ast_avg_err,"%" #Turns out it's 5.89%
         f.close()
-        
-        lambder = [float(x)*10e-6 for x in pyfits.open('opacity/lambda.fits')]
-        kapper = [float(x)/10 for x in pyfits.open('opacity/kappa.fits')]
-        albeder = [float(x) for x in pyfits.open('opacity/albedo.fits')]
-        q = []
-        for i in range(len(lambder)):
-            q.append(
-                # 1 is temporary grain size holder
-                float(4/3) * kapper[i] * self.grainDensity * 1 * (1-albeder[i])
-                )
-        qFunction = interp1d(lambder, q)
         
         # generate interpolation function
         loglamb = map (math.log10, self.data_lambda)
