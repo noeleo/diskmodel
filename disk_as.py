@@ -127,7 +127,7 @@ class Disk:
                 # 1e-6 is temporary grain size holder
                 float(4/3) * kapper[i] * self.grainDensity * 1e-6 * (1-albeder[i])
                 )
-        qFunction = interp1d(lambder, q)
+        qFunction = interp1d(lambder, q, bounds_error=False, fill_value=0)
 
         # generate interpolation function
         loglamb = map (math.log10, self.data_lambda)
@@ -254,7 +254,24 @@ class Disk:
         return grainTemperature
     '''    
     def calculateGrainTemperature(self, radius):
-        
+        lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
+        # initialize temperature for binary search
+        start = 0.0
+        end = 1000.0
+        # make threshold for left and right hand side, no idea for now
+        threshold = 1.0
+        while (true):
+            temp = (end-start)/2
+            rhs = integrate.quad(lambda l: qFunction(l)*planckFunction(temp, l), 0, numpy.inf)[0]
+            diff = rhs-lhs
+            if math.abs(diff) < threshold:
+                return temp
+            elif diff > 0:
+                # decrease t
+                end = temp
+            else:
+                # increase t
+                start = temp
     
     """
     returns nu*B_nu(lambda) in Jansky*Hz of the host star
