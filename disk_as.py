@@ -257,7 +257,7 @@ class Disk:
         # make threshold 1% of desired value
         threshold = 0.01*lhs
         while True:
-            temp = (end-start)/2
+            temp = (end+start)/2
             print "Temperature =", temp
             rhs = integrate.quad(lambda l: self.qFunction(l)*self.calculatePlanckFunction(temp, l), self.lammin, self.lammax)[0]
             print "Right =", rhs, "Left =", lhs
