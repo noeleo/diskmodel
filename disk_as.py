@@ -119,7 +119,7 @@ class Disk:
         #print "Average % error in IRS Spectrum =",self.ast_avg_err,"%" #Turns out it's 5.89%
         f.close()
         
-        lambder = [float(x)*10e-6 for x in pyfits.open('opacity/lambda.fits')[0].data]
+        lambder = [float(x)*1e-6 for x in pyfits.open('opacity/lambda.fits')[0].data]
         kapper = [float(x)/10 for x in pyfits.open('opacity/kappa.fits')[0].data]
         albeder = [float(x) for x in pyfits.open('opacity/albedo.fits')[0].data]
         q = []
