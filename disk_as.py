@@ -119,18 +119,10 @@ class Disk:
         #print "Average % error in IRS Spectrum =",self.ast_avg_err,"%" #Turns out it's 5.89%
         f.close()
         
-        lambder = [float(x)*1e-6 for x in pyfits.open('opacity/lambda.fits')[0].data]
-        kapper = [float(x)/10 for x in pyfits.open('opacity/kappa.fits')[0].data]
-        albeder = [float(x) for x in pyfits.open('opacity/albedo.fits')[0].data]
-        q = []
-        for i in range(len(lambder)):
-            q.append(
-                float(4/3) * kapper[i] * self.grainDensity * self.grainSize * (1-albeder[i])
-                )
-        self.qFunction = interp1d(lambder, q, bounds_error=False, fill_value=0) 
-        self.lammax = max(lambder)
-        self.lammin = min(lambder)
-        #Note that we are ignoring all emission for wavelengths above those given in lambder.
+        compiled_temp = [float(x) for x in pyfits.open('./dust/compiled_temperature.fits')[0].data]
+        compiled_grain_sizes = [float(x) for x in pyfits.open('./dust/compiled_grain_sizes.fits')[0].data]
+        compiled_integrals = pyfits.open('./dust/compiled_integrals.fits')[0].data
+        print compiled_integrals
 
         # generate interpolation function
         loglamb = map (math.log10, self.data_lambda)
