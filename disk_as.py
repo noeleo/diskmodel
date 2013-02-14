@@ -3,14 +3,12 @@ import numpy
 import matplotlib.pyplot as plt
 from scipy import integrate
 from scipy.interpolate import interp1d
+from scipy.interpolate import RectBivariateSpline
 from scipy.special import gamma
 import warnings
 import pyfits
 import time
 
-#from pyx import *
-
-# TEMPO: nonreduced chi squared
 
 class Disk:
 
@@ -122,8 +120,10 @@ class Disk:
         compiled_temp = [float(x) for x in pyfits.open('./dust/compiled_temperature.fits')[0].data]
         compiled_grain_sizes = [float(x) for x in pyfits.open('./dust/compiled_grain_sizes.fits')[0].data]
         compiled_integrals = pyfits.open('./dust/compiled_integrals.fits')[0].data
-        print compiled_integrals
-
+        self.sorted_integrals = [y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_integrals))]
+        self.sorted_grain_sizes = sorted(compiled_grain_sizes)
+        self.sorted_temp = compiled_temp
+        
         # generate interpolation function
         loglamb = map (math.log10, self.data_lambda)
         logflux = map(math.log10, self.data_flux)
@@ -241,21 +241,27 @@ class Disk:
         return numerator/denominator
     
     def calculateGrainTemperature(self, radius):
-        x = time.time()
+        lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
+        
+    
+    '''
+    def calculateGrainTemperature(self, radius):
+        #x = time.time()
         lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
         # initialize temperature for binary search
         start = 0.0
         end = 1000.0
-        # make threshold 1% of desired value
-        threshold = 0.01*lhs
+        # make threshold 0.1% of desired value
+        threshold = 0.001*lhs
         while True:
-            temp = (end+start)/2
+            temp = (end+start)/2 #I don't like this.  Let's implement Newton's method later.
             print "Temperature =", temp
-            rhs = integrate.quad(lambda l: self.qFunction(l)*self.calculatePlanckFunction(temp, l), self.lammin, self.lammax)[0]
+            #rhs = integrate.quad(lambda l: self.qFunction(l)*self.calculatePlanckFunction(temp, l), self.lammin, self.lammax)[0]
+            rhs = RectBivariateSpline(self.sorted_grain_sizes,self.sorted_temp,self.sorted_integrals)
             print "Right =", rhs, "Left =", lhs
             diff = rhs-lhs
             if math.fabs(diff) < threshold:
-                y = time.time()
+                #y = time.time()
                 print 'took ' + str(y-x) + ' seconds'
                 return temp
             elif diff > 0:
@@ -264,6 +270,7 @@ class Disk:
             else:
                 # increase t
                 start = temp
+        '''
     
     """
     returns nu*B_nu(lambda) in Jansky*Hz of the host star
