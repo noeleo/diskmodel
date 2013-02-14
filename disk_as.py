@@ -242,7 +242,12 @@ class Disk:
     
     def calculateGrainTemperature(self, radius):
         lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
-        
+        grain_proxy = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grainSize))
+        print 'grain =', grain_proxy
+        integral_list = [self.sorted_integrals[x][grain_proxy] for x in range(len(self.sorted_grain_sizes))]
+        integral_proxy = min(integral_list, key=lambda y: math.fabs(y-lhs))
+        print 'integral = ', integral_proxy
+        print 'temperature =', self.sorted_temp[integral_proxy]
     
     '''
     def calculateGrainTemperature(self, radius):
