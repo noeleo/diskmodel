@@ -120,9 +120,9 @@ class Disk:
         compiled_temp = [float(x) for x in pyfits.open('./dust/compiled_temperature.fits')[0].data]
         compiled_grain_sizes = [float(x) for x in pyfits.open('./dust/compiled_grain_sizes.fits')[0].data]
         compiled_integrals = pyfits.open('./dust/compiled_integrals.fits')[0].data
-        self.sorted_integrals = [y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_integrals))]
-        self.sorted_grain_sizes = sorted(compiled_grain_sizes)
-        self.sorted_temp = compiled_temp
+        self.sorted_integrals = numpy.array([y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_integrals))])
+        self.sorted_grain_sizes = numpy.array(sorted(compiled_grain_sizes))
+        self.sorted_temp = numpy.array(compiled_temp)
         
         # generate interpolation function
         loglamb = map (math.log10, self.data_lambda)
@@ -239,15 +239,28 @@ class Disk:
         exponent = self.h_const*self.c_const/(lamma*self.k_const*temperature)
         denominator = (lamma**5)*(math.e**exponent-1)
         return numerator/denominator
-    
+    """
+    Approximates the temperature of a grain using a precalculated table of integrals.
+    """
     def calculateGrainTemperature(self, radius):
         lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
-        grain_proxy = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grainSize))
-        print 'grain =', grain_proxy
-        integral_list = [self.sorted_integrals[x][grain_proxy] for x in range(len(self.sorted_grain_sizes))]
-        integral_proxy = min(integral_list, key=lambda y: math.fabs(y-lhs))
-        print 'integral = ', integral_proxy
-        print 'temperature =', self.sorted_temp[integral_proxy]
+        grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grainSize))
+        grain_index = numpy.where(self.sorted_grain_sizes==grain_close)[0][0]
+        
+        integral_list = [self.sorted_integrals[grain_index][x] for x in range(len(self.sorted_temp))]
+        integral_close = min(integral_list, key=lambda y: math.fabs(y-lhs))
+        integral_index = numpy.where(integral_list==integral_close)[0][0]
+        
+        temperature = self.sorted_temp[integral_index]
+        '''
+        plt.plot(self.sorted_temp,integral_list)
+        print "grain size =", self.grainSize
+        print "approx grain size =", grain_close
+        print "T =", temperature
+        print "lhs =", lhs
+        print "Integral =", integral_close
+        '''
+        return temperature
     
     '''
     def calculateGrainTemperature(self, radius):
