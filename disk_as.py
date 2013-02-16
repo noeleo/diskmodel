@@ -117,12 +117,21 @@ class Disk:
         #print "Average % error in IRS Spectrum =",self.ast_avg_err,"%" #Turns out it's 5.89%
         f.close()
         
+        #Read in Q*B table and associated arrays.
         compiled_temp = [float(x) for x in pyfits.open('./dust/compiled_temperature.fits')[0].data]
         compiled_grain_sizes = [float(x) for x in pyfits.open('./dust/compiled_grain_sizes.fits')[0].data]
         compiled_integrals = pyfits.open('./dust/compiled_integrals.fits')[0].data
+        compiled_q = pyfits.open('./dust/compiled_Q.fits')[0].data
+        self.sorted_q = numpy.array([y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_q))])
+        self.sorted_lambda = numpy.array([float(x) for x in pyfits.open('./dust/compiled_lambda.fits')[0].data])
         self.sorted_integrals = numpy.array([y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_integrals))])
         self.sorted_grain_sizes = numpy.array(sorted(compiled_grain_sizes))
         self.sorted_temp = numpy.array(compiled_temp)
+        #The following need to be put in calculateGrainTemperature when we do a distribution
+        self.grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grainSize))
+        self.grain_index = numpy.where(self.sorted_grain_sizes==self.grain_close)[0][0]
+        self.integral_list = [self.sorted_integrals[self.grain_index][x] for x in range(len(self.sorted_temp))]
+
         
         # generate interpolation function
         loglamb = map (math.log10, self.data_lambda)
@@ -197,7 +206,8 @@ class Disk:
             return 0
         # convert frequency to GHz
         lamma = self.c_const/(frequency*1e9)
-        flux = 1e26*self.qFunction(lamma)*(self.grainSize**2)*self.calculateGrainDistribution(radius)*self.calculateGrainBlackbody(radius, lamma)/(self.starDistance**2)
+        Q = self.qFunction(lamma)
+        flux = 1e26*Q*(self.grainSize**2)*self.calculateGrainDistribution(radius)*self.calculateGrainBlackbody(radius, lamma)/(self.starDistance**2)
         return flux
     
     """
@@ -210,7 +220,8 @@ class Disk:
                                                  *self.calculateGrainBlackbody(radius, lamma), self.innerRadius, self.outerRadius)[0]
         # scale by nu
         nu = self.c_const/lamma
-        flux = self.qFunction(lamma)*nu*2*math.pi*fluxIntegral*1e26*(self.grainSize**2)/(self.starDistance**2)
+        Q = self.qFunction(lamma)
+        flux = Q*nu*2*math.pi*fluxIntegral*1e26*(self.grainSize**2)/(self.starDistance**2)
         return flux
     
     """
@@ -227,7 +238,7 @@ class Disk:
         try:
             nu = self.c_const/lamma
             exponent = self.h_const*nu/(self.k_const*self.calculateGrainTemperature(radius))
-            numerator = 2*self.h_const*(nu**3)*math.pi # THIS PI IS ADDED BY ANGELO FOR SOLID ANGLE!
+            numerator = 2*self.h_const*(nu**3)*math.pi 
             denominator = (self.c_const**2)*(math.e**exponent - 1)
             grainBlackbody = numerator/denominator
         except OverflowError:
@@ -244,12 +255,9 @@ class Disk:
     """
     def calculateGrainTemperature(self, radius):
         lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
-        grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grainSize))
-        grain_index = numpy.where(self.sorted_grain_sizes==grain_close)[0][0]
         
-        integral_list = [self.sorted_integrals[grain_index][x] for x in range(len(self.sorted_temp))]
-        integral_close = min(integral_list, key=lambda y: math.fabs(y-lhs))
-        integral_index = numpy.where(integral_list==integral_close)[0][0]
+        integral_close = min(self.integral_list, key=lambda y: math.fabs(y-lhs))
+        integral_index = numpy.where(self.integral_list==integral_close)[0][0]
         
         temperature = self.sorted_temp[integral_index]
         '''
@@ -261,6 +269,15 @@ class Disk:
         print "Integral =", integral_close
         '''
         return temperature
+    
+    """
+    Returns the emissivity of a grain at a given wavelength from a lookup table.
+    """
+    def qFunction(self, lamma):
+        lamma_close = min(self.sorted_lambda, key=lambda y: math.fabs(y-lamma))
+        lamma_index = numpy.where(self.sorted_lambda==lamma_close)[0][0]
+        print lamma_close, lamma, lamma_index
+        return self.sorted_q[self.grain_index][lamma_index]
     
     '''
     def calculateGrainTemperature(self, radius):
