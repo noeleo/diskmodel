@@ -311,7 +311,6 @@ class Disk:
         self.asteroid_flux = y
         #print 'Warm Belt Flux at 1.3mm = ', self.calculateAsteroidBelt(1.3e-3)*1.3e-3/self.c_const, 'Jy'
 
-    
     def generateInterpolation(self):
         # generate interpolated data for the actual data we have
         def calculateInterpol(lam):
