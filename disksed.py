@@ -1,4 +1,4 @@
-from disk import Disk
+from disk_as import Disk
 import sys
 
 if (len(sys.argv) == 1):
@@ -12,5 +12,7 @@ if (len(sys.argv) == 1):
 else:
     params = sys.argv[1:8]
 disk = Disk(*params)
-print 'chi-squared:', disk.computeChiSquared()
+print 'Calculating chi-squared...'
+print 'Chi-squared:', disk.computeChiSquared()
+print 'Now plotting...'
 disk.plotSED()

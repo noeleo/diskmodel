@@ -28,8 +28,9 @@ hdulist.writeto('./dust/compiled_temperature.fits')
 # start grain size fits file
 grains = []
 
-# start result matrix
+# start result matrix and Q matrix
 result = []
+bigQ = []
 
 for dirname, dirnames, filenames in os.walk('./dust'):
 	regex = re.compile('./dust/astrosil_(\d*.\d*)mic')
@@ -44,7 +45,8 @@ for dirname, dirnames, filenames in os.walk('./dust'):
 			q.append(
 				float(4/3) * kapper[i] * grain_density * grain_size * (1-albeder[i])
 				)
-		qFunction = interp1d(lambder, q, bounds_error=False, fill_value=0) 
+		bigQ.append(q)
+        qFunction = interp1d(lambder, q, bounds_error=False, fill_value=0) 
 		lammax = max(lambder)
 		lammin = min(lambder)
 		integral_values = []
@@ -52,6 +54,17 @@ for dirname, dirnames, filenames in os.walk('./dust'):
 			val = integrate.quad(lambda l: qFunction(l)*calculatePlanckFunction(i, l), lammin, lammax)[0]
 			integral_values.append(val)
 		result.append(integral_values)
+		
+#Save data into separate FITS files.
+np_lambda = numpy.array(lambder)
+hdu = pyfits.PrimaryHDU(np_lambda)
+hdulist = pyfits.HDUList([hdu])
+hdulist.writeto('./dust/compiled_lambda.fits')
+
+np_Q = numpy.array(bigQ)
+hdu = pyfits.PrimaryHDU(np_Q)
+hdulist = pyfits.HDUList([hdu])
+hdulist.writeto('./dust/compiled_Q.fits')
 
 np_result = numpy.array(result)
 hdu = pyfits.PrimaryHDU(np_result)
