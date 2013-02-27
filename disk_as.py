@@ -276,7 +276,7 @@ class Disk:
     def qFunction(self, lamma):
         lamma_close = min(self.sorted_lambda, key=lambda y: math.fabs(y-lamma))
         lamma_index = numpy.where(self.sorted_lambda==lamma_close)[0][0]
-        print lamma_close, lamma, lamma_index
+        #print lamma_close, lamma, lamma_index
         return self.sorted_q[self.grain_index][lamma_index]
     
     '''
