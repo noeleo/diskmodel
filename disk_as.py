@@ -145,13 +145,15 @@ class Disk:
         self.n_asteroids = self.beltMass/self.M_aster
         self.Temp_a = 100
 
+        self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
         self.grain_temps = []
-        for i in range(1000):
-            lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
+        for i in range(len(self.rad_steps)):
+            lhs = self.starLuminosity/(16*(math.pi**2)*(self.rad_steps[i]**2))  
             integral_close = min(self.integral_list, key=lambda y: math.fabs(y-lhs))
             integral_index = numpy.where(self.integral_list==integral_close)[0][0]
             temperature = self.sorted_temp[integral_index]
             self.grain_temps.append(temperature)
+        self.temp_function = interp1d(self.grain_temps, self.rad_steps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1]) 
         
     """
     changes the paramters to the disk
@@ -224,7 +226,7 @@ class Disk:
         # integrate returns a list of integral value and error, we only want value
         fluxIntegral = integrate.quad(lambda radius: radius*self.calculateGrainDistribution(radius)
                                                  *self.calculateGrainBlackbody(radius, lamma), self.innerRadius, self.outerRadius,
-                                                 limit=5)[0]
+                                                 )[0]
         # scale by nu
         nu = self.c_const/lamma
         Q = self.qFunction(lamma)
@@ -262,7 +264,8 @@ class Disk:
     Approximates the temperature of a grain using a precalculated table of integrals.
     """
     def calculateGrainTemperature(self, radius):
-        return self.grain_temps[int(round(radius))]
+        return self.temp_function(radius)
+        #return self.grain_temps[int(round(radius))]
         '''
         lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
         
