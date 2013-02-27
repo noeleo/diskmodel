@@ -144,6 +144,14 @@ class Disk:
         self.M_aster = 4/3*math.pi*self.asteroid_radius**3*self.grainDensity 
         self.n_asteroids = self.beltMass/self.M_aster
         self.Temp_a = 100
+
+        self.grain_temps = []
+        for i in range(1000):
+            lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
+            integral_close = min(self.integral_list, key=lambda y: math.fabs(y-lhs))
+            integral_index = numpy.where(self.integral_list==integral_close)[0][0]
+            temperature = self.sorted_temp[integral_index]
+            self.grain_temps.append(temperature)
         
     """
     changes the paramters to the disk
@@ -254,12 +262,15 @@ class Disk:
     Approximates the temperature of a grain using a precalculated table of integrals.
     """
     def calculateGrainTemperature(self, radius):
+        return self.grain_temps[int(round(radius))]
+        '''
         lhs = self.starLuminosity/(16*(math.pi**2)*(radius**2))
         
         integral_close = min(self.integral_list, key=lambda y: math.fabs(y-lhs))
         integral_index = numpy.where(self.integral_list==integral_close)[0][0]
         
         temperature = self.sorted_temp[integral_index]
+        '''
         '''
         plt.plot(self.sorted_temp,integral_list)
         print "grain size =", self.grainSize
