@@ -138,20 +138,23 @@ class Disk:
         self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
         size_mag_steps = numpy.arange(math.log10(self.grainSize),math.log10(self.grainSize_max),0.3) #Steps of 0.3 in log space
         self.grain_steps = [10**x for x in size_mag_steps]
-        self.T_array = []
+        self.T_list = []
         for rad in range(len(self.rad_steps)):
             lhs = self.starLuminosity/(16*(math.pi**2)*(self.rad_steps[rad]**2)) 
             grain_temps = []
-            for size in range(len(self.rad_steps)):
+            for size in range(len(self.grain_steps)):
                 grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grain_steps[size]))
                 grain_index = numpy.where(self.sorted_grain_sizes==grain_close)[0][0]
                 integral_list = [self.sorted_integrals[grain_index][x] for x in range(len(self.sorted_temp))] 
                 integral_close = min(integral_list, key=lambda y: math.fabs(y-lhs))
-                integral_index = numpy.where(self.integral_list==integral_close)[0][0]
+                integral_index = numpy.where(integral_list==integral_close)[0][0]
                 temperature = self.sorted_temp[integral_index]
                 grain_temps.append(temperature)
-            self.T_array.append(grain_temps)
-            self.temp_function = interp1d(self.grain_temps, self.rad_steps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
+            self.T_list.append(grain_temps)
+        self.rad_array = numpy.array(self.rad_steps)
+        self.grain_array = numpy.array(self.grain_steps)
+        self.T_array = numpy.array(self.T_list)
+        self.temp_function = RectBivariateSpline(self.rad_array, self.grain_array, self.T_array)
 
 #TODO:  2D interpolation function ^
 
@@ -242,10 +245,11 @@ class Disk:
                           self.innerRadius, self.outerRadius)[0]
     def calculateFlux(self, lamma):
         # integrate returns a list of integral value and error, we only want value
-        fluxIntegral = integrate.quad(lambda size: self.radIntegral(lamma,size)*size**2*self.qFunction(lamma,size), self.innerRadius, self.outerRadius,)[0]
+        fluxIntegral = integrate.quad(lambda size: self.radIntegral(lamma,size)*size**2*self.qFunction(lamma,size), self.grainSize, self.grainSize_max)[0]
         # scale by nu
         nu = self.c_const/lamma
         flux = nu*2*math.pi*1e26/(self.starDistance**2)*fluxIntegral
+        print "Calculating flux at", lamma
         return flux
     
     """
@@ -270,18 +274,12 @@ class Disk:
         except OverflowError:
             return 0
         return grainBlackbody
-    
-    def calculatePlanckFunction(self, temperature, lamma):
-        numerator = 2*self.h_const*(self.c_const**2)
-        exponent = self.h_const*self.c_const/(lamma*self.k_const*temperature)
-        denominator = (lamma**5)*(math.e**exponent-1)
-        return numerator/denominator
 
     """
     Approximates the temperature of a grain using a precalculated table of integrals.
     """
     def calculateGrainTemperature(self, radius, size):
-        return self.temp_function(radius)
+        return self.temp_function(radius, size)
     #TODO:  This is redundant.
     """
     Returns the emissivity of a grain at a given wavelength from a lookup table.
@@ -289,7 +287,7 @@ class Disk:
     def qFunction(self, lamma, size):
         lamma_close = min(self.sorted_lambda, key=lambda y: math.fabs(y-lamma))
         lamma_index = numpy.where(self.sorted_lambda==lamma_close)[0][0]
-        grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grain_steps[size]))
+        grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-size))
         grain_index = numpy.where(self.sorted_grain_sizes==grain_close)[0][0]
         return self.sorted_q[grain_index][lamma_index]
     #TODO:  Would this be better as a 2d interpolation function as well?
@@ -311,7 +309,7 @@ class Disk:
     def generateModel(self):
         self.generateAsteroids()
         # sample from .1 microns to 10^4 microns
-        x = numpy.arange(-7, -2, .01)
+        x = numpy.arange(-7, -2, 1)
         x = [10**power for power in x]
         y = [self.calculateFlux(lamma) for lamma in x]
         self.disk_lambda = self.convertToMicrons(x)
