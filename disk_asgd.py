@@ -139,8 +139,8 @@ class Disk:
         size_mag_steps = numpy.arange(math.log10(self.grainSize),math.log10(self.grainSize_max),0.3) #Steps of 0.3 in log space
         self.grain_steps = [10**x for x in size_mag_steps]
         self.T_list = []
-        for rad in range(len(self.rad_steps)):
-            lhs = self.starLuminosity/(16*(math.pi**2)*(self.rad_steps[rad]**2)) 
+        for rad in self.rad_steps:
+            lhs = self.starLuminosity/(16*(math.pi**2)*(rad**2)) 
             grain_temps = []
             for size in range(len(self.grain_steps)):
                 grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grain_steps[size]))
