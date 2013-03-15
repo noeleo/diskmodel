@@ -57,6 +57,7 @@ class Disk:
         '''
         Read in model spectrum, IRS spectrum, and Kurucz-Lejeune atmosphere.
         '''
+        print 'Reading in spectral data...'
         # read and store data from the SED model
         f = open('Model Spectrum.txt','r')
         radius = 0.84*6.955*1e8
@@ -118,8 +119,9 @@ class Disk:
         #print "Average % error in IRS Spectrum =",self.ast_avg_err,"%" #Turns out it's 5.89%
         f.close()
         '''
-        Read in Q*B table and associated arrays.
-        '''        
+        Read in Q*B table and associated arrays.  Q = Q[a][\lambda]
+        '''    
+        print 'Reading in compiled arrays...'    
         compiled_temp = [float(x) for x in pyfits.open('./dust/compiled_temperature.fits')[0].data]
         compiled_grain_sizes = [float(x) for x in pyfits.open('./dust/compiled_grain_sizes.fits')[0].data]
         compiled_integrals = pyfits.open('./dust/compiled_integrals.fits')[0].data
@@ -131,10 +133,14 @@ class Disk:
         self.sorted_integrals = numpy.array([y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_integrals))])
         self.sorted_grain_sizes = numpy.array(sorted(compiled_grain_sizes))
         self.sorted_temp = numpy.array(compiled_temp)
+        print 'Calculating Q(a,lambda)...'
+        self.q_interp = RectBivariateSpline(self.sorted_grain_sizes, self.sorted_lambda, self.sorted_q)
+
         
         '''
         Generate Temperature[radius][grain size] array and the resulting interpolation function.
         '''
+        print 'Calculating T(r,a)...'
         self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
         size_mag_steps = numpy.arange(math.log10(self.grainSize),math.log10(self.grainSize_max),0.3) #Steps of 0.3 in log space
         self.grain_steps = [10**x for x in size_mag_steps]
@@ -156,8 +162,6 @@ class Disk:
         self.T_array = numpy.array(self.T_list)
         self.temp_function = RectBivariateSpline(self.rad_array, self.grain_array, self.T_array)
 
-#TODO:  2D interpolation function ^
-
         # generate interpolation function that interpolates in log space
         loglamb = map (math.log10, self.data_lambda)
         logflux = map(math.log10, self.data_flux)
@@ -170,8 +174,6 @@ class Disk:
         self.M_aster = 4/3*math.pi*self.asteroid_radius**3*self.grainDensity 
         self.n_asteroids = self.beltMass/self.M_aster
         self.Temp_a = 100
-
- 
         
     """
     changes the parameters to the disk
@@ -240,16 +242,20 @@ class Disk:
     input lambda wavelength in meters
     return nu*B_nu(lambda) in Jansky*Hz
     """
+    '''
     def radIntegral(self, lamma, size):
         return integrate.quad(lambda radius: radius*self.calculateGrainBlackbody(radius, lamma, size)*self.calculateGrainSizeDistribution(radius, size),\
-                          self.innerRadius, self.outerRadius)[0]
+                          self.innerRadius, self.outerRadius, limit=len(self.rad_steps))[0]
+                          '''
     def calculateFlux(self, lamma):
         # integrate returns a list of integral value and error, we only want value
-        fluxIntegral = integrate.quad(lambda size: self.radIntegral(lamma,size)*size**2*self.qFunction(lamma,size), self.grainSize, self.grainSize_max)[0]
+        fluxIntegral = integrate.dblquad(lambda size, radius: radius*self.calculateGrainBlackbody(radius, lamma, size)*self.calculateGrainSizeDistribution(radius, size)
+            *(size**2)*self.qFunction(lamma, size), self.innerRadius, self.outerRadius, lambda y: self.grainSize, lambda y: self.grainSize_max, epsrel=0.1)
+            #TODO:  That epsrel is probably not ideal, and this calculation is still very slow.
         # scale by nu
         nu = self.c_const/lamma
-        flux = nu*2*math.pi*1e26/(self.starDistance**2)*fluxIntegral
-        print "Calculating flux at", lamma
+        flux = nu*2*math.pi*1e26/(self.starDistance**2)*fluxIntegral[0]
+        print "Flux =", flux, "at lambda =", lamma
         return flux
     
         """
@@ -285,23 +291,8 @@ class Disk:
     Returns the emissivity of a grain at a given wavelength from a lookup table.
     """
     def qFunction(self, lamma, size):
-        lamma_close = min(self.sorted_lambda, key=lambda y: math.fabs(y-lamma))
-        lamma_index = numpy.where(self.sorted_lambda==lamma_close)[0][0]
-        grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-size))
-        grain_index = numpy.where(self.sorted_grain_sizes==grain_close)[0][0]
-        return self.sorted_q[grain_index][lamma_index]
-    #TODO:  Would this be better as a 2d interpolation function as well?
-    """
-    returns nu*B_nu(lambda) in Jansky*Hz of the host star
-    """
-    def calculateStarBlackbody(self, lamma):
-        nu = self.c_const/lamma
-        exponent = self.h_const*nu/(self.k_const*self.starTemperature)
-        numerator = 2*self.h_const*(nu**3)
-        denominator = (self.c_const**2)*(math.exp(exponent)-1)
-        nu = self.c_const/lamma
-        # not sure what to scale by (4pi?)
-        return numerator/denominator*nu*1e26*(self.starRadius**2)/(self.starDistance**2)
+        return self.q_interp(size, lamma)
+    #TODO:  This is also redundant.
     
     """
     generates lambda and nu*B_nu values in meters and Janksy*Hz, respectively
@@ -309,7 +300,7 @@ class Disk:
     def generateModel(self):
         self.generateAsteroids()
         # sample from .1 microns to 10^4 microns
-        x = numpy.arange(-7, -2, 1)
+        x = numpy.arange(-7, -2, 0.1)
         x = [10**power for power in x]
         y = [self.calculateFlux(lamma) for lamma in x]
         self.disk_lambda = self.convertToMicrons(x)
@@ -330,7 +321,7 @@ class Disk:
         return asteroidBlackbody
     
     def generateAsteroids(self):
-        x = numpy.arange(-7, -2, 0.01)
+        x = numpy.arange(-7, -2, 0.1)
         x = [10**power for power in x]
         y = [self.calculateAsteroidBelt(lamma) for lamma in x]
         self.asteroid_lambda = self.convertToMicrons(x)
@@ -352,7 +343,7 @@ class Disk:
     """
     def plotSED(self):
         self.generateModel()
-        self.generateInterpolation()
+        #self.generateInterpolation()
         
         # plot the observed data
         plt.errorbar(self.sample_lambda, self.Lsun(self.sample_flux), yerr=self.Lsun(self.sample_error), fmt='o', label = 'Observed Data', color='k')
