@@ -140,10 +140,10 @@ class Disk:
         self.grain_steps = [10**x for x in size_mag_steps]
         self.T_list = []
         for rad in self.rad_steps:
-            lhs = self.starLuminosity/(16*(math.pi**2)*(rad**2)) 
+            lhs = self.starLuminosity/(16*(math.pi**2)*(rad**2))
             grain_temps = []
-            for size in range(len(self.grain_steps)):
-                grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grain_steps[size]))
+            for size in self.grain_steps:
+                grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-size))
                 grain_index = numpy.where(self.sorted_grain_sizes==grain_close)[0][0]
                 integral_list = [self.sorted_integrals[grain_index][x] for x in range(len(self.sorted_temp))] 
                 integral_close = min(integral_list, key=lambda y: math.fabs(y-lhs))
