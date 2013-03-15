@@ -248,7 +248,7 @@ class Disk:
         flux = nu*2*math.pi*1e26/(self.starDistance**2)*fluxIntegral
         return flux
     
-        """
+    """
     Computes the surface number density of grains that are of size "size."  Replaces calculateGrainDistribution.
     """
     def calculateGrainSizeDistribution(self, radius, size):
