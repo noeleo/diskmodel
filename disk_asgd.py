@@ -7,9 +7,6 @@ from scipy.interpolate import RectBivariateSpline
 from scipy.special import gamma
 import warnings
 import pyfits
-import time
-
-#Note:  We never changed "changeParameters," but I don't think we're ever using this.
 
 class Disk:
 
@@ -41,10 +38,12 @@ class Disk:
         self.outerRadius = float(outerRadius)*1.496e11
         # convert grain size to meters
         self.grainSize = float(grainSize)/1e6
+        self.grainSize_max = 0.01 #Max grain size is set to 1 cm
+        self.grainpowerLaw = -2.5 #Since dN/da = -3.5
         # convert to kilograms
         self.diskMass = float(diskMass)*5.9742e24
         self.powerLaw = float(powerLaw)
-        self.grainEfficiency = float(grainEfficiency)
+        self.grainEfficiency = float(grainEfficiency) #TODO:  We can just get rid of this, right?
         self.beltMass = float(beltMass)*5.9742e24
         # calculate zeta(grainEfficency + 4)
         argument = self.grainEfficiency + 4
@@ -55,8 +54,9 @@ class Disk:
         j = 2 - self.powerLaw
         m = (self.outerRadius**j) - (self.innerRadius**j)
         self.surfaceSigma = self.diskMass*j/(2*math.pi*((100*1.496e11)**self.powerLaw)*m)
-        self.grainMass = self.grainDensity*(4.0/3.0*math.pi*(self.grainSize**3))
-        
+        '''
+        Read in model spectrum, IRS spectrum, and Kurucz-Lejeune atmosphere.
+        '''
         # read and store data from the SED model
         f = open('Model Spectrum.txt','r')
         radius = 0.84*6.955*1e8
@@ -117,23 +117,45 @@ class Disk:
         self.ast_avg_err = numpy.mean(self.IRS_error)
         #print "Average % error in IRS Spectrum =",self.ast_avg_err,"%" #Turns out it's 5.89%
         f.close()
-        
-        #Read in Q*B table and associated arrays.
+        '''
+        Read in Q*B table and associated arrays.
+        '''        
         compiled_temp = [float(x) for x in pyfits.open('./dust/compiled_temperature.fits')[0].data]
         compiled_grain_sizes = [float(x) for x in pyfits.open('./dust/compiled_grain_sizes.fits')[0].data]
         compiled_integrals = pyfits.open('./dust/compiled_integrals.fits')[0].data
         compiled_q = pyfits.open('./dust/compiled_Q.fits')[0].data
+        
+        #Need to sort, since they were generated in a weird order...
         self.sorted_q = numpy.array([y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_q))])
         self.sorted_lambda = numpy.array([float(x) for x in pyfits.open('./dust/compiled_lambda.fits')[0].data])
         self.sorted_integrals = numpy.array([y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_integrals))])
         self.sorted_grain_sizes = numpy.array(sorted(compiled_grain_sizes))
         self.sorted_temp = numpy.array(compiled_temp)
-        #The following need to be put in calculateGrainTemperature when we do a distribution
-        self.grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grainSize))
-        self.grain_index = numpy.where(self.sorted_grain_sizes==self.grain_close)[0][0]
-        self.integral_list = [self.sorted_integrals[self.grain_index][x] for x in range(len(self.sorted_temp))]
+        
+        '''
+        Generate Temperature[radius][grain size] array and the resulting interpolation function.
+        '''
+        self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
+        size_mag_steps = numpy.arange(math.log10(self.grainSize),math.log10(self.grainSize_max),0.3) #Steps of 0.3 in log space
+        self.grain_steps = [10**x for x in size_mag_steps]
+        self.T_array = []
+        for rad in range(len(self.rad_steps)):
+            lhs = self.starLuminosity/(16*(math.pi**2)*(self.rad_steps[rad]**2)) 
+            grain_temps = []
+            for size in range(len(self.rad_steps)):
+                grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grain_steps[size]))
+                grain_index = numpy.where(self.sorted_grain_sizes==grain_close)[0][0]
+                integral_list = [self.sorted_integrals[grain_index][x] for x in range(len(self.sorted_temp))] 
+                integral_close = min(integral_list, key=lambda y: math.fabs(y-lhs))
+                integral_index = numpy.where(self.integral_list==integral_close)[0][0]
+                temperature = self.sorted_temp[integral_index]
+                grain_temps.append(temperature)
+            self.T_array.append(grain_temps)
+            self.temp_function = interp1d(self.grain_temps, self.rad_steps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
 
-        # generate interpolation function
+#TODO:  2D interpolation function ^
+
+        # generate interpolation function that interpolates in log space
         loglamb = map (math.log10, self.data_lambda)
         logflux = map(math.log10, self.data_flux)
         # if out of bounds, interpolates to 0
@@ -146,19 +168,12 @@ class Disk:
         self.n_asteroids = self.beltMass/self.M_aster
         self.Temp_a = 100
 
-        self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
-        self.grain_temps = []
-        for i in range(len(self.rad_steps)):
-            lhs = self.starLuminosity/(16*(math.pi**2)*(self.rad_steps[i]**2))  
-            integral_close = min(self.integral_list, key=lambda y: math.fabs(y-lhs))
-            integral_index = numpy.where(self.integral_list==integral_close)[0][0]
-            temperature = self.sorted_temp[integral_index]
-            self.grain_temps.append(temperature)
-        self.temp_function = interp1d(self.grain_temps, self.rad_steps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1]) 
+ 
         
     """
-    changes the paramters to the disk
+    changes the parameters to the disk
     """
+    #TODO:  Need to regenerate the temp and q functions every time.  
     def changeParameters(self, innerRadius, outerRadius, grainSize, diskMass, powerLaw, grainEfficiency, beltMass):        
         # convert the radii to meters
         self.innerRadius = float(innerRadius)*1.496e11
@@ -180,7 +195,6 @@ class Disk:
         j = 2 - self.powerLaw
         m = (self.outerRadius**j) - (self.innerRadius**j)
         self.surfaceSigma = self.diskMass*j/(2*math.pi*((100*1.496e11)**self.powerLaw)*m)
-        self.grainMass = self.grainDensity*(4.0/3.0*math.pi*(self.grainSize**3))
     
     """
     gets the inner and outer radii in AU
@@ -203,7 +217,6 @@ class Disk:
     def convertToMicrons(self, lst):
         return [x*1e6 for x in lst]
     
-    # TODO: make sure this is the same as calculate flux
     """
     Takes a radius (in AU) and frequency (in GHz)
     Returns the point flux at that radius and frequency in Jansky's
@@ -215,40 +228,43 @@ class Disk:
             return 0
         # convert frequency to GHz
         lamma = self.c_const/(frequency*1e9)
-        Q = self.qFunction(lamma)
-        flux = 1e26*Q*(self.grainSize**2)*self.calculateGrainDistribution(radius)*self.calculateGrainBlackbody(radius, lamma)/(self.starDistance**2)
+        fluxIntegral = integrate.quad(lambda size: (size**2)*self.qFunction(lamma,size)*\
+                              self.calculateGrainSizeDistribution(radius, size)*self.calculateGrainBlackbody(radius, lamma, size),\
+                              self.grainSize, self.grainSize_max)[0]
+        flux = 1e26/(self.starDistance**2)*fluxIntegral
         return flux
-    
     """
     input lambda wavelength in meters
     return nu*B_nu(lambda) in Jansky*Hz
     """
+    def radIntegral(self, lamma, size):
+        return integrate.quad(lambda radius: radius*self.calculateGrainBlackbody(radius, lamma, size)*self.calculateGrainSizeDistribution(radius, size),\
+                          self.innerRadius, self.outerRadius)[0]
     def calculateFlux(self, lamma):
         # integrate returns a list of integral value and error, we only want value
-        fluxIntegral = integrate.quad(lambda radius: radius*self.calculateGrainDistribution(radius)
-                                                 *self.calculateGrainBlackbody(radius, lamma), self.innerRadius, self.outerRadius,
-                                                 )[0]
+        fluxIntegral = integrate.quad(lambda size: self.radIntegral(lamma,size)*size**2*self.qFunction(lamma,size), self.innerRadius, self.outerRadius,)[0]
         # scale by nu
         nu = self.c_const/lamma
-        Q = self.qFunction(lamma)
-        flux = Q*nu*2*math.pi*fluxIntegral*1e26*(self.grainSize**2)/(self.starDistance**2)
+        flux = nu*2*math.pi*1e26/(self.starDistance**2)*fluxIntegral
         return flux
     
+        """
+    Computes the surface number density of grains that are of size "size."  Replaces calculateGrainDistribution.
     """
-    returns the surface density at a given radius
-    """
-    def calculateGrainDistribution(self, radius):
-        surfaceDensity = self.surfaceSigma*((radius/(100*1.496e11))**(-self.powerLaw))
-        return surfaceDensity/self.grainMass
+    def calculateGrainSizeDistribution(self, radius, size):
+        surfaceMassDensity = self.surfaceSigma*((radius/(100*1.496e11))**(-self.powerLaw))
+        numerator = surfaceMassDensity*3*(self.grainpowerLaw + 4)*size**(self.grainpowerLaw)
+        denominator = 4*math.pi*self.grainDensity*(self.grainSize_max**(self.grainpowerLaw + 4) - self.grainSize**(self.grainpowerLaw + 4))
+        return numerator/denominator
     
     """
     returns B_nu(T) in Janskys ( = 10^-26 * Watts / m^2 / Hz )
     """
-    def calculateGrainBlackbody(self, radius, lamma):
+    def calculateGrainBlackbody(self, radius, lamma, size):
         try:
             nu = self.c_const/lamma
-            exponent = self.h_const*nu/(self.k_const*self.calculateGrainTemperature(radius))
-            numerator = 2*self.h_const*(nu**3)*math.pi 
+            exponent = self.h_const*nu/(self.k_const*self.calculateGrainTemperature(radius, size))
+            numerator = 2*self.h_const*(nu**3)*math.pi
             denominator = (self.c_const**2)*(math.e**exponent - 1)
             grainBlackbody = numerator/denominator
         except OverflowError:
@@ -264,18 +280,19 @@ class Disk:
     """
     Approximates the temperature of a grain using a precalculated table of integrals.
     """
-    def calculateGrainTemperature(self, radius):
+    def calculateGrainTemperature(self, radius, size):
         return self.temp_function(radius)
-    
+    #TODO:  This is redundant.
     """
     Returns the emissivity of a grain at a given wavelength from a lookup table.
     """
-    def qFunction(self, lamma):
+    def qFunction(self, lamma, size):
         lamma_close = min(self.sorted_lambda, key=lambda y: math.fabs(y-lamma))
         lamma_index = numpy.where(self.sorted_lambda==lamma_close)[0][0]
-        #print lamma_close, lamma, lamma_index
-        return self.sorted_q[self.grain_index][lamma_index]
-    
+        grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grain_steps[size]))
+        grain_index = numpy.where(self.sorted_grain_sizes==grain_close)[0][0]
+        return self.sorted_q[grain_index][lamma_index]
+    #TODO:  Would this be better as a 2d interpolation function as well?
     """
     returns nu*B_nu(lambda) in Jansky*Hz of the host star
     """
@@ -402,7 +419,7 @@ class Disk:
         return Mass/3.00266478958e-06 #Conversion to Earth Masses
     
     '''
-    Gets the approximate temperature of the disk
+    Gets the approximate temperature of the disk using Wien's law.
     '''
     def disktemp(self):
         x = numpy.arange(-7, -2, .01)
@@ -419,7 +436,7 @@ class Disk:
                 
         
     '''
-    Need to debug?  Look no further!  Well...there's nothing further anyway, but yeah, use this.
+    Need to debug?  Look no further!
     '''
     def testplot(self):
         x = numpy.arange(-10, 5, .001)

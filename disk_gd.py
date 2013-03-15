@@ -210,7 +210,6 @@ class Disk:
         # scale by nu
         nu = self.c_const/lamma
         flux = nu*2*math.pi*1e26/(self.starDistance**2)*fluxIntegral
-        # multiply by Q(lamma)
         return flux
     
     """

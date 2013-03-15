@@ -1,4 +1,4 @@
-from disk_as import Disk
+from disk_asgd import Disk
 import sys
 
 if (len(sys.argv) == 1):
