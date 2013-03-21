@@ -8,7 +8,7 @@ import math
 import random
 import numpy
 import sys
-from disk import Disk
+from disk_as import Disk
 from visgen import VisibilityGenerator
 
 #Important Disk Parameters for the FITS file needed by visgen.

@@ -9,8 +9,6 @@ import warnings
 import pyfits
 import time
 
-#Note:  We never changed "changeParameters," but I don't think we're ever using this.
-
 class Disk:
 
     stefbolt_const = 5.67e-8
@@ -57,6 +55,7 @@ class Disk:
         self.surfaceSigma = self.diskMass*j/(2*math.pi*((100*1.496e11)**self.powerLaw)*m)
         self.grainMass = self.grainDensity*(4.0/3.0*math.pi*(self.grainSize**3))
         
+        print 'Reading in SED data...'
         # read and store data from the SED model
         f = open('Model Spectrum.txt','r')
         radius = 0.84*6.955*1e8
@@ -117,22 +116,38 @@ class Disk:
         self.ast_avg_err = numpy.mean(self.IRS_error)
         #print "Average % error in IRS Spectrum =",self.ast_avg_err,"%" #Turns out it's 5.89%
         f.close()
+        print 'Done!'
         
+        print 'Reading in tabulated integrals...'
         #Read in Q*B table and associated arrays.
         compiled_temp = [float(x) for x in pyfits.open('./dust/compiled_temperature.fits')[0].data]
         compiled_grain_sizes = [float(x) for x in pyfits.open('./dust/compiled_grain_sizes.fits')[0].data]
         compiled_integrals = pyfits.open('./dust/compiled_integrals.fits')[0].data
-        compiled_q = pyfits.open('./dust/compiled_Q.fits')[0].data
-        self.sorted_q = numpy.array([y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_q))])
+        
+        #Sorting, since the arrays were generated in an arbitrary order.
         self.sorted_lambda = numpy.array([float(x) for x in pyfits.open('./dust/compiled_lambda.fits')[0].data])
         self.sorted_integrals = numpy.array([y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_integrals))])
         self.sorted_grain_sizes = numpy.array(sorted(compiled_grain_sizes))
         self.sorted_temp = numpy.array(compiled_temp)
-        #The following need to be put in calculateGrainTemperature when we do a distribution
+        
+        print 'Calculating T(r)...'
+        #Pick out the parts of the tabulated arrays relevant to this grain size.
         self.grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grainSize))
         self.grain_index = numpy.where(self.sorted_grain_sizes==self.grain_close)[0][0]
         self.integral_list = [self.sorted_integrals[self.grain_index][x] for x in range(len(self.sorted_temp))]
 
+        #Generate an estimate of T(r) based on the tabulated integrals.
+        self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
+        self.grain_temps = []
+        for i in range(len(self.rad_steps)):
+            lhs = self.starLuminosity/(16*(math.pi**2)*(self.rad_steps[i]**2))  
+            integral_close = min(self.integral_list, key=lambda y: math.fabs(y-lhs))
+            integral_index = numpy.where(self.integral_list==integral_close)[0][0]
+            temperature = self.sorted_temp[integral_index]
+            self.grain_temps.append(temperature)
+        self.temp_function = interp1d(self.grain_temps, self.rad_steps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
+        print 'Done!'
+        
         # generate interpolation function
         loglamb = map (math.log10, self.data_lambda)
         logflux = map(math.log10, self.data_flux)
@@ -144,17 +159,7 @@ class Disk:
         self.asteroid_radius = 1.0e-6 #arbitrary
         self.M_aster = 4/3*math.pi*self.asteroid_radius**3*self.grainDensity 
         self.n_asteroids = self.beltMass/self.M_aster
-        self.Temp_a = 100
-
-        self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
-        self.grain_temps = []
-        for i in range(len(self.rad_steps)):
-            lhs = self.starLuminosity/(16*(math.pi**2)*(self.rad_steps[i]**2))  
-            integral_close = min(self.integral_list, key=lambda y: math.fabs(y-lhs))
-            integral_index = numpy.where(self.integral_list==integral_close)[0][0]
-            temperature = self.sorted_temp[integral_index]
-            self.grain_temps.append(temperature)
-        self.temp_function = interp1d(self.grain_temps, self.rad_steps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1]) 
+        self.Temp_a = 100 
         
     """
     changes the paramters to the disk
@@ -181,6 +186,24 @@ class Disk:
         m = (self.outerRadius**j) - (self.innerRadius**j)
         self.surfaceSigma = self.diskMass*j/(2*math.pi*((100*1.496e11)**self.powerLaw)*m)
         self.grainMass = self.grainDensity*(4.0/3.0*math.pi*(self.grainSize**3))
+
+        print 'Calculating T(r)...'
+        #Pick out the parts of the tabulated arrays relevant to this grain size.
+        self.grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grainSize))
+        self.grain_index = numpy.where(self.sorted_grain_sizes==self.grain_close)[0][0]
+        self.integral_list = [self.sorted_integrals[self.grain_index][x] for x in range(len(self.sorted_temp))]
+
+        #Generate an estimate of T(r) based on the tabulated integrals.
+        self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
+        self.grain_temps = []
+        for i in range(len(self.rad_steps)):
+            lhs = self.starLuminosity/(16*(math.pi**2)*(self.rad_steps[i]**2))  
+            integral_close = min(self.integral_list, key=lambda y: math.fabs(y-lhs))
+            integral_index = numpy.where(self.integral_list==integral_close)[0][0]
+            temperature = self.sorted_temp[integral_index]
+            self.grain_temps.append(temperature)
+        self.temp_function = interp1d(self.grain_temps, self.rad_steps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
+        print 'Done!'
     
     """
     gets the inner and outer radii in AU
@@ -203,7 +226,6 @@ class Disk:
     def convertToMicrons(self, lst):
         return [x*1e6 for x in lst]
     
-    # TODO: make sure this is the same as calculate flux
     """
     Takes a radius (in AU) and frequency (in GHz)
     Returns the point flux at that radius and frequency in Jansky's
@@ -268,13 +290,10 @@ class Disk:
         return self.temp_function(radius)
     
     """
-    Returns the emissivity of a grain at a given wavelength from a lookup table.
+    Returns the emissivity of a grain at a given wavelength.
     """
     def qFunction(self, lamma):
-        lamma_close = min(self.sorted_lambda, key=lambda y: math.fabs(y-lamma))
-        lamma_index = numpy.where(self.sorted_lambda==lamma_close)[0][0]
-        #print lamma_close, lamma, lamma_index
-        return self.sorted_q[self.grain_index][lamma_index]
+        return 1-math.exp(-(2*math.pi*self.grainSize/lamma)**self.grainEfficiency)
     
     """
     returns nu*B_nu(lambda) in Jansky*Hz of the host star
@@ -337,18 +356,16 @@ class Disk:
     """
     def plotSED(self):
         self.generateModel()
-        self.generateInterpolation()
         
         # plot the observed data
         plt.errorbar(self.sample_lambda, self.Lsun(self.sample_flux), yerr=self.Lsun(self.sample_error), fmt='o', label = 'Observed Data', color='k')
         plt.loglog(self.IRS_lambda, self.Lsun(self.IRS_flux), label = 'IRS Spectrum', linewidth=2, color='y')
+        plt.errorbar([1.3e-3*1e6], self.Lsun([7.1e-3*self.c_const/1.3e-3]), self.Lsun([1.5e-3*self.c_const/1.3e-3]), fmt='s', color='m') #This is our data point, with 20% systematic uncertainty added in quadrature.
 
         # plot the disk model
         plt.loglog(self.model_lambda, self.Lsun(self.model_flux), '-', label="Best Fit Model", linewidth=2, color='b')
         plt.loglog(self.disk_lambda, self.Lsun(self.disk_flux), '--', label="Disk Model", linewidth=2, color='g')
-        #plt.loglog(self.sample_lambda, self.interpol_flux, "o", label = 'Interpolated Model Data')
         plt.loglog(self.asteroid_lambda, self.Lsun(self.asteroid_flux), ':', label='Warm Dust Belt', linewidth=2, color='r')
-        plt.errorbar([1.3e-3*1e6], self.Lsun([7.1e-3*self.c_const/1.3e-3]), self.Lsun([1.5e-3*self.c_const/1.3e-3]), fmt='s', color='m') #This is our data point, with 20% systematic uncertainty added in quadrature.
         
         # format and display the plot 
         plt.tick_params(labelsize=16)

@@ -2,7 +2,7 @@ import math
 import numpy
 import pyfits
 import os
-from disk import Disk
+from disk_as import Disk
 
 # TEMPO: NONREDUCED CHI
 
