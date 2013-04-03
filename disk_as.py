@@ -202,7 +202,11 @@ class Disk:
             integral_index = numpy.where(self.integral_list==integral_close)[0][0]
             temperature = self.sorted_temp[integral_index]
             self.grain_temps.append(temperature)
-        self.temp_function = interp1d(self.grain_temps, self.rad_steps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
+        if len(self.rad_steps) > 1:
+            self.temp_function = interp1d(self.grain_temps, self.rad_steps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
+        if len(self.rad_steps) == 1:
+            def temp_function(self):
+                return self.grain_temps[0]
         print 'Done!'
     
     """

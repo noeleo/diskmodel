@@ -2,7 +2,7 @@ import math
 import numpy
 import matplotlib.pyplot as plt
 import sys
-from disk import Disk
+from disk_as import Disk
 from matplotlib.patches import Rectangle
 
 '''
@@ -81,7 +81,7 @@ if sys.argv[2] == 'mh':
     print 'Data read!  Beginning to make boxes...'
 
 #Mean and Standard Deviation
-chop = int(math.ceil(len(acceptance)*0.15)) #Ignore the first 15% of the chain.
+chop = int(math.ceil(len(acceptance)*0.35)) #Ignore the first 35% of the chain.
 #chop = 0
 length = len(acceptance)
 print 'Number of Steps =', length
@@ -100,13 +100,13 @@ bestmodels = []
 if sys.argv[2] == 'mh':
     for i in xrange(len(chisteps)): 
         if chisteps[i]==chibest:
-            bestmodels.append(i)+1 #+1 because chisteps should have 1 fewer entry, namely the first one
+            bestmodels.append(i+1) #+1 because chisteps should have 1 fewer entry, namely the first one
     print 'This value is seen at step(s):', bestmodels
 if sys.argv[2] == 'ensemble':
     for i in xrange(len(chisteps)): 
         if chisteps[i]==chibest:
             bestmodels.append(i)
-    n_walkers = walkers[max(walkers)]+1 #Just because I want to count from 1, whereas the mcmc code counts from 0.  Doesn't matter; not used.
+    n_walkers = walkers[max(walkers)]+1 #+1 just because I want to count from 1, whereas the mcmc code counts from 0.  Doesn't matter.
     print 'This value is seen at trial(s)', [(x - (x % n_walkers))/n_walkers for x in bestmodels], 'of walker(s)', [x % n_walkers for x in bestmodels]
 top = bestmodels[0] 
 
@@ -120,11 +120,11 @@ OR_deltas=[abs(x-outerRadsteps[top]) for x in outerRadsteps[chop:]]
 OR_deltas.sort()
 outerRadsigma = OR_deltas[int(0.6827*len(OR_deltas))]
 
-GS_deltas=[abs(x-10**(grainSizesteps[top])) for x in [10**y for y in grainSizesteps[chop:]]]
+GS_deltas=[abs(x-grainSizesteps[top]) for x in grainSizesteps[chop:]]
 GS_deltas.sort()
 grainSizesigma = GS_deltas[int(0.6827*len(GS_deltas))]
 
-DM_deltas=[abs(x-10**(diskMasssteps[top])) for x in [10**y for y in diskMasssteps[chop:]]]
+DM_deltas=[abs(x-diskMasssteps[top]) for x in diskMasssteps[chop:]]
 DM_deltas.sort()
 diskMasssigma = DM_deltas[int(0.6827*len(DM_deltas))]
 
@@ -136,18 +136,18 @@ GE_deltas=[abs(x-grainEfficiencysteps[top]) for x in grainEfficiencysteps[chop:]
 GE_deltas.sort()
 grainEfficiencysigma = GE_deltas[int(0.6827*len(GE_deltas))]
 
-BM_deltas=[abs(x-10**(beltMasssteps[top])) for x in [10**y for y in beltMasssteps[chop:]]]
+BM_deltas=[abs(x-beltMasssteps[top]) for x in beltMasssteps[chop:]]
 BM_deltas.sort()
 beltMasssigma = BM_deltas[int(0.6827*len(BM_deltas))]
 
 print 'For that first model...' 
 print 'Inner Radius =', innerRadsteps[top], '+/-', innerRadsigma
 print 'Outer Radius =', outerRadsteps[top], '+/-', outerRadsigma
-print 'Grain Size =', 10**grainSizesteps[top], '+/-', grainSizesigma
-print 'Disk Mass =', 10**diskMasssteps[top], '+/-', diskMasssigma
+print 'log(Grain Size) =', grainSizesteps[top], '+/-', grainSizesigma
+print 'log(Disk Mass) =', diskMasssteps[top], '+/-', diskMasssigma
 print 'Power Law =', powerLawsteps[top],'+/-', powerLawsigma
 print 'Grain Efficiency =', grainEfficiencysteps[top], '+/-', grainEfficiencysigma
-print 'Belt Mass =', 10**beltMasssteps[top], '+/-', beltMasssigma
+print 'log(Belt Mass) =', beltMasssteps[top], '+/-', beltMasssigma
 
 #Implement IDL's smooth function
 def smooth(array, number):
@@ -218,8 +218,13 @@ weighter = [1./length for dummy in chisteps[chop:]]
 histobars = 20
 
 #INNER RADIUS
+minIR = 60.0
+maxIR = 75.0
+innerRadsteps2 = [i for i in innerRadsteps[chop:] if i > minIR and i < maxIR]
+weighter2ir = [1./length for i in innerRadsteps2]
+
 ax1 = plt.subplot(321)
-n1, bins1, patches1 = ax1.hist(innerRadsteps[chop:], histobars, weights=weighter, normed=0, facecolor='green', alpha=0.75)
+n1, bins1, patches1 = ax1.hist(innerRadsteps2, histobars, weights=weighter2ir, normed=0, facecolor='green', alpha=0.75)
 ax1.set_xlabel(r'$R_{in}$ [AU]', fontsize=16)
 ax1.set_ylabel('Fraction', fontsize=16)
 ax1.grid(True)
@@ -237,17 +242,17 @@ ax.add_patch(rectangle)
 plt.axhline(y=62.1, xmin=-5, xmax=5, color='grey', linewidth=2)
 plt.axhline(y=60.4, xmin=-5, xmax=5, color='grey', linewidth=2)
 '''
-'''
+
 #Tick Customization
-ticks1 = numpy.arange(60,75,5)
+ticks1 = numpy.arange(60,80,5)
 plt.xticks(ticks1)
-plt.yticks(numpy.arange(0,0.1,0.02))
-'''
+plt.yticks(numpy.arange(0,0.22,0.04))
+
 
 #GRAIN SIZE
 #Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
-minGS = -2.5
-maxGS = -0.0
+minGS = 0.3
+maxGS = 0.6
 grainSizesteps2 = [i for i in grainSizesteps[chop:] if i > minGS and i < maxGS]
 weighter2gs = [1./length for i in grainSizesteps2]
 
@@ -261,7 +266,7 @@ plt.axvline(x=grainSizesteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 #Tick Customization
 #ticks2 = numpy.arange(-2.5,0.0,0.5)
 #plt.xticks(ticks2)
-plt.yticks(numpy.arange(0,0.16,0.04))
+plt.yticks(numpy.arange(0,0.07,0.02))
 
 
 #DISK MASS
@@ -281,13 +286,13 @@ plt.axvline(x=diskMasssteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 #Tick Customization
 #ticks3 = numpy.arange(-5.0,-3.0,0.5)
 #plt.xticks(ticks3)
-plt.yticks(numpy.arange(0,0.14,0.04))
+plt.yticks(numpy.arange(0,0.17,0.04))
 
 
 #GRAIN EFFICIENCY
 #Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
-minbeta = 0.25
-maxbeta = 0.55
+minbeta = 0.1
+maxbeta = 0.5
 grainEfficiencysteps2 = [i for i in grainEfficiencysteps[chop:] if i > minbeta and i < maxbeta]
 weighter2ge = [1./length for i in grainEfficiencysteps2]
 
@@ -307,7 +312,7 @@ plt.yticks(numpy.arange(0,0.14,0.04))
 ax5 = plt.subplot(325)
 
 #Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
-minBM = -6.15
+minBM = -6.20
 beltMasssteps2 = [i for i in beltMasssteps[chop:] if i > minBM]
 weighter2bm = [1./length for i in beltMasssteps2]
 

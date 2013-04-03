@@ -21,20 +21,21 @@ if (len(sys.argv) == 1):
     print 'You are not saving, fyi.  If you want to save, the file name is sys.argv[1].'
 if (len(sys.argv) == 2):
     save = open(sys.argv[1],'w')
+    print 'Saving data to', sys.argv[1]
 
 #Set number of walkers and then number of trials for each.
 n_walkers = 100
 n_trials = 1000
 a = 2.           #This is just an adjustable parameter that Foreman-Mackey et al., 2012 suggest should be 2.
     
-#Initialize the Ensemble.  These values are from mcmc_ensemble1113
-innerRad0 = 65.
+#Initialize the Ensemble.  These values are from a chi-by-eye
+innerRad0 = 67.
 outerRad0 = innerRad0*1.05  #Set equal to innerRad x 1.05
-grainSize0 = -1.3  #Will be raised to the 10th power
-diskMass0 = -4.1  #Will be raised to the 10th power
-powerLaw0 = 0.5  #Currently fixed
-grainEfficiency0 = 0.37
-beltMass0 = -5.9 #Will be raised to the 10th power
+grainSize0 = 0.9  #Will be raised to the 10th power
+diskMass0 = -2.0  #Will be raised to the 10th power
+powerLaw0 = 1.0  #Currently fixed
+grainEfficiency0 = 0.4
+beltMass0 = -6.0 #Will be raised to the 10th power
 
 #These widths come from the widths to achieve a good acceptance rate for the MH algorithm.  I don't know how well they'll do here.
 betaIR = 3.
@@ -98,6 +99,11 @@ for trial in range(n_trials):
         parameter_difference = [ensemble[random_other][trial][param]-ensemble[walker][trial][param] for param in range(len(ensemble[walker][trial])-2)] #-2 to exclude chi2, acceptance
         proposition = [ensemble[walker][trial][param] + zz*parameter_difference[param] for param in range(len(ensemble[walker][trial])-2)]
         
+        while proposition[0] <= 0 or proposition[5] <= 0:
+            zz = ((a - 1.)*random.uniform(0.,1.) + 1.)**2/a
+            parameter_difference = [ensemble[random_other][trial][param]-ensemble[walker][trial][param] for param in range(len(ensemble[walker][trial])-2)] #-2 to exclude chi2, acceptance
+            proposition = [ensemble[walker][trial][param] + zz*parameter_difference[param] for param in range(len(ensemble[walker][trial])-2)]
+        print "Proposition:", proposition
         #Calculate chi^2.
         disk.changeParameters(proposition[0], proposition[1], 10.**(proposition[2]), 10.**(proposition[3]), \
                               proposition[4], proposition[5], 10.**(proposition[6]))
