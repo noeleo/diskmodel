@@ -131,10 +131,16 @@ class Disk:
         self.sorted_temp = numpy.array(compiled_temp)
         
         print 'Calculating T(r)...'
+        '''
         #Pick out the parts of the tabulated arrays relevant to this grain size.
         self.grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grainSize))
         self.grain_index = numpy.where(self.sorted_grain_sizes==self.grain_close)[0][0]
         self.integral_list = [self.sorted_integrals[self.grain_index][x] for x in range(len(self.sorted_temp))]
+        '''
+        
+        #New:  Interpolate between 2 closest grain sizes.  These two lines took me nearly 2 hours.  =P
+        self.temp_interp_funcs = [interp1d(self.sorted_grain_sizes,self.sorted_integrals[:,temp]) for temp in range(len(self.sorted_temp))]
+        self.integral_list = [f(self.grainSize) for f in self.temp_interp_funcs]
 
         #Generate an estimate of T(r) based on the tabulated integrals.
         self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
@@ -145,7 +151,7 @@ class Disk:
             integral_index = numpy.where(self.integral_list==integral_close)[0][0]
             temperature = self.sorted_temp[integral_index]
             self.grain_temps.append(temperature)
-        self.temp_function = interp1d(self.grain_temps, self.rad_steps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
+        self.temp_function = interp1d(self.rad_steps, self.grain_temps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
         print 'Done!'
         
         # generate interpolation function
@@ -159,7 +165,7 @@ class Disk:
         self.asteroid_radius = 1.0e-6 #arbitrary
         self.M_aster = 4/3*math.pi*self.asteroid_radius**3*self.grainDensity 
         self.n_asteroids = self.beltMass/self.M_aster
-        self.Temp_a = 100 
+        self.Temp_a = 100.0 
         
     """
     changes the paramters to the disk
@@ -189,9 +195,8 @@ class Disk:
 
         print 'Calculating T(r)...'
         #Pick out the parts of the tabulated arrays relevant to this grain size.
-        self.grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grainSize))
-        self.grain_index = numpy.where(self.sorted_grain_sizes==self.grain_close)[0][0]
-        self.integral_list = [self.sorted_integrals[self.grain_index][x] for x in range(len(self.sorted_temp))]
+        self.temp_interp_funcs = [interp1d(self.sorted_grain_sizes,self.sorted_integrals[:,temp]) for temp in range(len(self.sorted_temp))]
+        self.integral_list = [f(self.grainSize) for f in self.temp_interp_funcs]
 
         #Generate an estimate of T(r) based on the tabulated integrals.
         self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
@@ -203,7 +208,7 @@ class Disk:
             temperature = self.sorted_temp[integral_index]
             self.grain_temps.append(temperature)
         if len(self.rad_steps) > 1:
-            self.temp_function = interp1d(self.grain_temps, self.rad_steps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
+            self.temp_function = interp1d(self.rad_steps, self.grain_temps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
         if len(self.rad_steps) == 1:
             def temp_function(self):
                 return self.grain_temps[0]
@@ -363,13 +368,16 @@ class Disk:
         
         # plot the observed data
         plt.errorbar(self.sample_lambda, self.Lsun(self.sample_flux), yerr=self.Lsun(self.sample_error), fmt='o', label = 'Observed Data', color='k')
-        plt.loglog(self.IRS_lambda, self.Lsun(self.IRS_flux), label = 'IRS Spectrum', linewidth=2, color='y')
         plt.errorbar([1.3e-3*1e6], self.Lsun([7.1e-3*self.c_const/1.3e-3]), self.Lsun([1.5e-3*self.c_const/1.3e-3]), fmt='s', color='m') #This is our data point, with 20% systematic uncertainty added in quadrature.
 
         # plot the disk model
+        plt.plot(self.data_lambda, self.Lsun(self.data_flux), '-.', label = 'Model Photosphere', linewidth=2, color='m')
         plt.loglog(self.model_lambda, self.Lsun(self.model_flux), '-', label="Best Fit Model", linewidth=2, color='b')
         plt.loglog(self.disk_lambda, self.Lsun(self.disk_flux), '--', label="Disk Model", linewidth=2, color='g')
-        plt.loglog(self.asteroid_lambda, self.Lsun(self.asteroid_flux), ':', label='Warm Dust Belt', linewidth=2, color='r')
+        plt.loglog(self.asteroid_lambda, self.Lsun(self.asteroid_flux), ':', label='Warm Dust Belt', linewidth=2, color='y')
+        
+        # plot the IRS spectrum
+        plt.loglog(self.IRS_lambda, self.Lsun(self.IRS_flux), label = 'IRS Spectrum', linewidth=2, color='r')
         
         # format and display the plot 
         plt.tick_params(labelsize=16)
@@ -440,11 +448,12 @@ class Disk:
                 
         
     '''
-    Need to debug?  Look no further!  Well...there's nothing further anyway, but yeah, use this.
+    For debugging
     '''
     def testplot(self):
-        x = numpy.arange(-10, 5, .001)
-        x = [10**power for power in x]
-        y = [self.calculateGrainBlackbody(70.,lamma) for lamma in x]
-        plt.loglog(x, y)
+        xaxis = [1.5e11*x for x in numpy.arange(40,80,1)]
+        yaxis = [self.temp_function(x) for x in xaxis]
+        plt.plot(xaxis, yaxis)
+        #plt.plot(self.sorted_temp,self.integral_list)
+        #plt.plot(self.sorted_temp,self.integral_list2,'g')
         plt.show()

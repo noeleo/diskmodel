@@ -80,17 +80,17 @@ if sys.argv[2] == 'mh':
 
 #Make Boxes
 xaxis = grainSizesteps
-xminmax = [-2.35,-0.85]
+xminmax = [0.35,0.58]
 
 if sys.argv[3] == 'beta':
     yaxis = grainEfficiencysteps
-    yminmax = [0.29,0.47] 
+    yminmax = [0.3,0.48] 
 if sys.argv[3] == 'M_D':
     yaxis = diskMasssteps
-    yminmax = [-5.0,-3.5] 
+    yminmax = [-3.15,-2.75] 
 if sys.argv[3] == 'R_in':
     yaxis = innerRadsteps
-    yminmax = [59,85] #Inner Radius
+    yminmax = [59,75] #Inner Radius
 
 density = 30.
 dx = (xminmax[1]-xminmax[0])/density
@@ -102,7 +102,7 @@ yarray = numpy.arange(yminmax[0],yminmax[1],dy)
 yarray = yarray[0:int(density)]
 
 length = len(xaxis)
-chop = int(math.ceil(length*0.15)) #Ignore the first 15% of the chain.
+chop = int(math.ceil(length*0.35)) #Ignore the first 35% of the chain.
 #chop = 0
 
 #Each entry constitutes 100/(length-chop) %
@@ -193,7 +193,7 @@ if sys.argv[3] == 'M_D':
     plt.ylabel(r'log($M_D$ $[M_\oplus]$)', fontsize=18)
 if sys.argv[3] == 'R_in':
     plt.ylabel(r'$R_{in}$ [AU]', fontsize=18)
-plt.xticks(numpy.arange(-2.2,-0.8,0.3))
+plt.xticks(numpy.arange(xminmax[0],xminmax[1],0.05))
 
 
 #Buenzli's radius

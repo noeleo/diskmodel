@@ -82,7 +82,6 @@ if sys.argv[2] == 'mh':
 
 #Mean and Standard Deviation
 chop = int(math.ceil(len(acceptance)*0.35)) #Ignore the first 35% of the chain.
-#chop = 0
 length = len(acceptance)
 print 'Number of Steps =', length
 print 'Inner Radius: ', 'Mean =', numpy.average(innerRadsteps[chop:]), 'Median =', numpy.median(innerRadsteps[chop:]), 'STD =', numpy.std(innerRadsteps[chop:])
@@ -246,7 +245,7 @@ plt.axhline(y=60.4, xmin=-5, xmax=5, color='grey', linewidth=2)
 #Tick Customization
 ticks1 = numpy.arange(60,80,5)
 plt.xticks(ticks1)
-plt.yticks(numpy.arange(0,0.22,0.04))
+plt.yticks(numpy.arange(0,0.17,0.04))
 
 
 #GRAIN SIZE
@@ -257,16 +256,16 @@ grainSizesteps2 = [i for i in grainSizesteps[chop:] if i > minGS and i < maxGS]
 weighter2gs = [1./length for i in grainSizesteps2]
 
 ax2 = plt.subplot(322)
-n2, bins2, patches2 = ax2.hist(grainSizesteps2, histobars, weights=weighter2gs, normed=0, facecolor='green', alpha=0.75)
+n2, bins2, patches2 = ax2.hist(grainSizesteps2, 12, weights=weighter2gs, normed=0, facecolor='green', alpha=0.75)
 ax2.set_xlabel(r'log(a [$\mu m$])', fontsize=16)
 ax2.set_ylabel('Fraction', fontsize=16)
 ax2.grid(True)
 plt.axvline(x=grainSizesteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 
 #Tick Customization
-#ticks2 = numpy.arange(-2.5,0.0,0.5)
-#plt.xticks(ticks2)
-plt.yticks(numpy.arange(0,0.07,0.02))
+ticks2 = numpy.arange(0.35,0.61,0.05)
+plt.xticks(ticks2)
+plt.yticks(numpy.arange(0,0.13,0.02))
 
 
 #DISK MASS
@@ -291,8 +290,8 @@ plt.yticks(numpy.arange(0,0.17,0.04))
 
 #GRAIN EFFICIENCY
 #Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
-minbeta = 0.1
-maxbeta = 0.5
+minbeta = 0.3
+maxbeta = 0.48
 grainEfficiencysteps2 = [i for i in grainEfficiencysteps[chop:] if i > minbeta and i < maxbeta]
 weighter2ge = [1./length for i in grainEfficiencysteps2]
 
@@ -304,8 +303,8 @@ ax4.grid(True)
 plt.axvline(x=grainEfficiencysteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 
 #Tick Customization
-#ticks4 = numpy.arange(0.25,0.55,0.1)
-#plt.xticks(ticks4)
+ticks4 = numpy.arange(0.3,0.51,0.05)
+plt.xticks(ticks4)
 plt.yticks(numpy.arange(0,0.14,0.04))
 
 
@@ -323,7 +322,7 @@ ax5.grid(True)
 plt.axvline(x=beltMasssteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 
 #Tick Customization
-ticks5 = numpy.arange(-6.15,-5.65,0.1)
+ticks5 = numpy.arange(-6.2,-5.7,0.1)
 plt.xticks(ticks5)
 plt.yticks(numpy.arange(0,0.20,0.04))
 

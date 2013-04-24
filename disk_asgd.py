@@ -173,7 +173,7 @@ class Disk:
         self.asteroid_radius = 1.0e-6 #arbitrary
         self.M_aster = 4/3*math.pi*self.asteroid_radius**3*self.grainDensity 
         self.n_asteroids = self.beltMass/self.M_aster
-        self.Temp_a = 100
+        self.Temp_a = 100.0
         
     """
     changes the parameters to the disk
