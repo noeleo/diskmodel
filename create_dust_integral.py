@@ -65,32 +65,30 @@ bigQ = []
 QF_integral = []
 
 for dirname, dirnames, filenames in os.walk('./dust'):
-	regex = re.compile('./dust/astrosil_(\d*.\d*)mic')
-	if re.match(regex, dirname):
-		grain_size = float(re.match(regex, dirname).groups()[0]) * 1e-6
-		grains.append(grain_size)
-		lambder = [float(x)*1e-6 for x in pyfits.open(dirname + '/lambda.fits')[0].data]
-		kapper = [float(x)/10 for x in pyfits.open(dirname + '/kappa.fits')[0].data]
-		albeder = [float(x) for x in pyfits.open(dirname + '/albedo.fits')[0].data]
-		q = []
-		for i in range(len(lambder)):
-			q.append(
-				float(4/3) * kapper[i] * grain_density * grain_size * (1-albeder[i])
-				)
-		bigQ.append(q)
-        qFunction = interp1d(lambder, q, bounds_error=False, fill_value=0) 
-		lammax = max(lambder)
-		lammin = min(lambder)
-		QB_integral_values = []
-		for i in temp:
-			QBval = integrate.quad(lambda l: qFunction(l)*calculatePlanckFunction(i, l), lammin, lammax)[0]
-			QB_integral_values.append(QBval)
-		QB_integral.append(integral_values)
-        QF_integral_values = []
-        for i in rad:
-            QFval = integrate.quad(lambda l: qFunction(l)*calculateIncomingFlux(i, l), lammin, lammax)[0]
-            QF_integral_values.append(QFval)
-        QF_integral.append(QFval)
+  regex = re.compile('./dust/astrosil_(\d*.\d*)mic')
+  if re.match(regex, dirname):
+    grain_size = float(re.match(regex, dirname).groups()[0]) * 1e-6
+    grains.append(grain_size)
+    lambder = [float(x)*1e-6 for x in pyfits.open(dirname + '/lambda.fits')[0].data]
+    kapper = [float(x)/10 for x in pyfits.open(dirname + '/kappa.fits')[0].data]
+    albeder = [float(x) for x in pyfits.open(dirname + '/albedo.fits')[0].data]
+    q = []
+    for i in range(len(lambder)):
+      q.append(float(4/3) * kapper[i] * grain_density * grain_size * (1-albeder[i]))
+    bigQ.append(q)
+    qFunction = interp1d(lambder, q, bounds_error=False, fill_value=0) 
+    lammax = max(lambder)
+    lammin = min(lambder)
+    QB_integral_values = []
+    for i in temp:
+      QBval = integrate.quad(lambda l: qFunction(l)*calculatePlanckFunction(i, l), lammin, lammax)[0]
+      QB_integral_values.append(QBval)
+    QB_integral.append(integral_values)
+    QF_integral_values = []
+    for i in rad:
+      QFval = integrate.quad(lambda l: qFunction(l)*calculateIncomingFlux(i, l), lammin, lammax)[0]
+      QF_integral_values.append(QFval)
+    QF_integral.append(QFval)
 		
 #Save data into separate FITS files.
 np_lambda = numpy.array(lambder)
