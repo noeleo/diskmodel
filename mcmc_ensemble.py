@@ -93,7 +93,7 @@ for trial in range(n_trials):
         random_other = int(random.random()*n_walkers)
         while random_other == walker:
             random_other = int(random.random()*n_walkers)
-        zz = ((a - 1.)*random.uniform(0.,1.) + 1.)**2/a               #I really have no idea where this comes from.  Copied from Katherine's code.
+        zz = ((a - 1.)*random.uniform(0.,1.) + 1.)**2/a               
         
         #Propose a step along the line between them.
         parameter_difference = [ensemble[random_other][trial][param]-ensemble[walker][trial][param] for param in range(len(ensemble[walker][trial])-2)] #-2 to exclude chi2, acceptance
@@ -122,7 +122,7 @@ for trial in range(n_trials):
             dice = random.random()
         log_dice = math.log(dice)
         
-        if log_dice <= log_prob_diff:  #I should check if we shouldn't do min(1,log_prob_diff).  Katherine didn't, but the paper does.
+        if log_dice <= log_prob_diff:
             #Accept new state.
             proposition.append(prop_chi)
             proposition.append(1)

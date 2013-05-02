@@ -28,23 +28,23 @@ n_walkers = 100
 n_trials = 1000
 a = 2.           #This is just an adjustable parameter that Foreman-Mackey et al., 2012 suggest should be 2.
     
-#Initialize the Ensemble.  These values are from a chi-by-eye
+#Initialize the Ensemble.  These values are mostly from mcmc_ensemble0326
 innerRad0 = 35.
 outerRad0 = innerRad0 + 65.0 #So that \Delta R/R ~ 1
-grainSize0 = 0.4  #Will be raised to the 10th power
-diskMass0 = -2.8  #Will be raised to the 10th power
+grainSize0 = 0.5  #Will be raised to the 10th power
+diskMass0 = -3.0  #Will be raised to the 10th power
 powerLaw0 = 1.0  #Currently fixed
-grainEfficiency0 = 0.5
-beltMass0 = -5.7 #Will be raised to the 10th power
+grainEfficiency0 = 0.4
+beltMass0 = -6.0 #Will be raised to the 10th power
 
-#These widths are twice the standard deviations found in mcmc_ensemble0326.  We'll see how well they do.
-betaIR = 2.
-betaOR = 2.     #We don't actually use this, since the outer radius is fixed to 65 + the inner radius.
-betaGS = 0.08
-betaDM = 0.1
-betaPL = 0.02   #Never used this; that number is a placeholder.
-betaGE = 0.04 
-betaBM = 0.08
+#These widths are roughly 4 times the stddev from mcmc_ensemble0326.
+betaIR = 5.
+betaOR = 5.     #We don't actually use this, since the outer radius is fixed to 1.05 times the inner radius.
+betaGS = 0.15
+betaDM = 0.15
+betaPL = 0.01   #Never used this; that number is a placeholder.
+betaGE = 0.1 
+betaBM = 0.2
 
 #Create a disk and visibility generator
 disk = Disk(innerRad0, outerRad0, 10.**grainSize0, 10.**diskMass0, powerLaw0, grainEfficiency0, 10.**beltMass0)

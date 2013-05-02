@@ -81,7 +81,7 @@ if sys.argv[2] == 'mh':
     print 'Data read!  Beginning to make boxes...'
 
 #Mean and Standard Deviation
-chop = int(math.ceil(len(acceptance)*0.35)) #Ignore the first 35% of the chain.
+chop = int(math.ceil(len(acceptance)*0.10)) #Ignore the first 10% of the chain.
 length = len(acceptance)
 print 'Number of Steps =', length
 print 'Inner Radius: ', 'Mean =', numpy.average(innerRadsteps[chop:]), 'Median =', numpy.median(innerRadsteps[chop:]), 'STD =', numpy.std(innerRadsteps[chop:])
@@ -217,8 +217,8 @@ weighter = [1./length for dummy in chisteps[chop:]]
 histobars = 20
 
 #INNER RADIUS
-minIR = 60.0
-maxIR = 75.0
+minIR = 55.0
+maxIR = 80.0
 innerRadsteps2 = [i for i in innerRadsteps[chop:] if i > minIR and i < maxIR]
 weighter2ir = [1./length for i in innerRadsteps2]
 
@@ -243,35 +243,35 @@ plt.axhline(y=60.4, xmin=-5, xmax=5, color='grey', linewidth=2)
 '''
 
 #Tick Customization
-ticks1 = numpy.arange(60,80,5)
+ticks1 = numpy.arange(55,85,5)
 plt.xticks(ticks1)
-plt.yticks(numpy.arange(0,0.17,0.04))
+plt.yticks(numpy.arange(0,0.21,0.05))
 
 
 #GRAIN SIZE
 #Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
 minGS = 0.3
-maxGS = 0.6
+maxGS = 0.8
 grainSizesteps2 = [i for i in grainSizesteps[chop:] if i > minGS and i < maxGS]
 weighter2gs = [1./length for i in grainSizesteps2]
 
 ax2 = plt.subplot(322)
-n2, bins2, patches2 = ax2.hist(grainSizesteps2, 12, weights=weighter2gs, normed=0, facecolor='green', alpha=0.75)
+n2, bins2, patches2 = ax2.hist(grainSizesteps2, histobars, weights=weighter2gs, normed=0, facecolor='green', alpha=0.75)
 ax2.set_xlabel(r'log(a [$\mu m$])', fontsize=16)
 ax2.set_ylabel('Fraction', fontsize=16)
 ax2.grid(True)
 plt.axvline(x=grainSizesteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 
 #Tick Customization
-ticks2 = numpy.arange(0.35,0.61,0.05)
+ticks2 = numpy.arange(0.35,0.81,0.1)
 plt.xticks(ticks2)
-plt.yticks(numpy.arange(0,0.13,0.02))
+plt.yticks(numpy.arange(0,0.17,0.04))
 
 
 #DISK MASS
 #Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
-minDM = -5.5
-maxDM = -2.5
+minDM = -3.3
+maxDM = -2.3
 diskMasssteps2 = [i for i in diskMasssteps[chop:] if i > minDM and i < maxDM]
 weighter2dm = [1./length for i in diskMasssteps2]
 
@@ -290,8 +290,8 @@ plt.yticks(numpy.arange(0,0.17,0.04))
 
 #GRAIN EFFICIENCY
 #Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
-minbeta = 0.3
-maxbeta = 0.48
+minbeta = 0.2
+maxbeta = 0.7
 grainEfficiencysteps2 = [i for i in grainEfficiencysteps[chop:] if i > minbeta and i < maxbeta]
 weighter2ge = [1./length for i in grainEfficiencysteps2]
 
@@ -303,15 +303,15 @@ ax4.grid(True)
 plt.axvline(x=grainEfficiencysteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 
 #Tick Customization
-ticks4 = numpy.arange(0.3,0.51,0.05)
+ticks4 = numpy.arange(0.2,0.71,0.1)
 plt.xticks(ticks4)
-plt.yticks(numpy.arange(0,0.14,0.04))
+plt.yticks(numpy.arange(0,0.21,0.05))
 
 
 ax5 = plt.subplot(325)
 
 #Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
-minBM = -6.20
+minBM = -6.15
 beltMasssteps2 = [i for i in beltMasssteps[chop:] if i > minBM]
 weighter2bm = [1./length for i in beltMasssteps2]
 
@@ -322,9 +322,9 @@ ax5.grid(True)
 plt.axvline(x=beltMasssteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 
 #Tick Customization
-ticks5 = numpy.arange(-6.2,-5.7,0.1)
+ticks5 = numpy.arange(-6.2,-5.65,0.1)
 plt.xticks(ticks5)
-plt.yticks(numpy.arange(0,0.20,0.04))
+plt.yticks(numpy.arange(0,0.21,0.05))
 
 plt.subplots_adjust(wspace=0.4, hspace=0.7)
 #plt.suptitle('Probability Distributions from MCMC', fontsize=18)
@@ -335,6 +335,6 @@ plt.figure(3)
 disk = Disk(innerRadsteps[top], outerRadsteps[top], 10**grainSizesteps[top], 10**diskMasssteps[top], powerLawsteps[top], grainEfficiencysteps[top], 10**beltMasssteps[top])
 disk.plotSED()
 print 'SED chi-squared =', disk.computeChiSquared()
-print 'Disk temp =', disk.disktemp()
+print 'T_avg =', disk.calculateGrainTemperature(0.5*(innerRadsteps[top] + outerRadsteps[top])*1.496e11)
 
 plt.show()

@@ -56,7 +56,7 @@ class Disk:
         self.grainMass = self.grainDensity*(4.0/3.0*math.pi*(self.grainSize**3))
         
         print 'Reading in SED data...'
-        # read and store data from the SED model
+        # read and store data from the Kurucz-Lejeune model
         f = open('Model Spectrum.txt','r')
         radius = 0.84*6.955*1e8
         dist = 35*3.09e16
@@ -131,14 +131,8 @@ class Disk:
         self.sorted_temp = numpy.array(compiled_temp)
         
         print 'Calculating T(r)...'
-        '''
-        #Pick out the parts of the tabulated arrays relevant to this grain size.
-        self.grain_close = min(self.sorted_grain_sizes, key=lambda y: math.fabs(y-self.grainSize))
-        self.grain_index = numpy.where(self.sorted_grain_sizes==self.grain_close)[0][0]
-        self.integral_list = [self.sorted_integrals[self.grain_index][x] for x in range(len(self.sorted_temp))]
-        '''
-        
-        #New:  Interpolate between 2 closest grain sizes.  These two lines took me nearly 2 hours.  =P
+
+        #Interpolate between 2 closest grain sizes.  
         self.temp_interp_funcs = [interp1d(self.sorted_grain_sizes,self.sorted_integrals[:,temp]) for temp in range(len(self.sorted_temp))]
         self.integral_list = [f(self.grainSize) for f in self.temp_interp_funcs]
 
@@ -322,7 +316,7 @@ class Disk:
     def generateModel(self):
         self.generateAsteroids()
         # sample from .1 microns to 10^4 microns
-        x = numpy.arange(-7, -2, .01)
+        x = numpy.arange(-7, -2, 0.001)
         x = [10**power for power in x]
         y = [self.calculateFlux(lamma) for lamma in x]
         self.disk_lambda = self.convertToMicrons(x)
@@ -343,7 +337,7 @@ class Disk:
         return asteroidBlackbody
     
     def generateAsteroids(self):
-        x = numpy.arange(-7, -2, 0.01)
+        x = numpy.arange(-7, -2, 0.001)
         x = [10**power for power in x]
         y = [self.calculateAsteroidBelt(lamma) for lamma in x]
         self.asteroid_lambda = self.convertToMicrons(x)
@@ -372,6 +366,7 @@ class Disk:
 
         # plot the disk model
         plt.plot(self.data_lambda, self.Lsun(self.data_flux), '-.', label = 'Model Photosphere', linewidth=2, color='m')
+        #plt.plot(self.model_lambda, [interp1d(self.data_lambda, self.Lsun(self.data_flux), bounds_error=False, fill_value=0)(x) for x in self.model_lambda], '-.', label = 'Model Photosphere', linewidth=2, color='m')
         plt.loglog(self.model_lambda, self.Lsun(self.model_flux), '-', label="Best Fit Model", linewidth=2, color='b')
         plt.loglog(self.disk_lambda, self.Lsun(self.disk_flux), '--', label="Disk Model", linewidth=2, color='g')
         plt.loglog(self.asteroid_lambda, self.Lsun(self.asteroid_flux), ':', label='Warm Dust Belt', linewidth=2, color='y')

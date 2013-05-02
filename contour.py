@@ -80,17 +80,17 @@ if sys.argv[2] == 'mh':
 
 #Make Boxes
 xaxis = grainSizesteps
-xminmax = [0.35,0.58]
+xminmax = [0.25,0.8]
 
 if sys.argv[3] == 'beta':
     yaxis = grainEfficiencysteps
-    yminmax = [0.3,0.48] 
+    yminmax = [0.2,0.7] 
 if sys.argv[3] == 'M_D':
     yaxis = diskMasssteps
-    yminmax = [-3.15,-2.75] 
+    yminmax = [-3.4,-2.2] 
 if sys.argv[3] == 'R_in':
     yaxis = innerRadsteps
-    yminmax = [59,75] #Inner Radius
+    yminmax = [55,80] #Inner Radius
 
 density = 30.
 dx = (xminmax[1]-xminmax[0])/density
@@ -102,8 +102,7 @@ yarray = numpy.arange(yminmax[0],yminmax[1],dy)
 yarray = yarray[0:int(density)]
 
 length = len(xaxis)
-chop = int(math.ceil(length*0.35)) #Ignore the first 35% of the chain.
-#chop = 0
+chop = int(math.ceil(length*0.10)) #Ignore the first 10% of the chain.
 
 #Each entry constitutes 100/(length-chop) %
 
@@ -171,11 +170,20 @@ contours = [sigma3,sigma2,sigma1,zsort[0]]
 print 'Boxes filled!  Plotting now.'
 
 #Locate Best Fit to overplot
+#Locate Best Fit
 chibest = min(chisteps)
+print 'The best value for chi-squared was', chibest, 'and the median value for the accepted chi-squared was', numpy.median(chisteps)
 bestmodels = []
-for i in xrange(len(chisteps)): 
-    if chisteps[i]==chibest:
-        bestmodels.append(i+1) #+1 because chisteps should have 1 fewer entry, namely the first one
+if sys.argv[2] == 'mh':
+    for i in xrange(len(chisteps)): 
+        if chisteps[i]==chibest:
+            bestmodels.append(i+1) #+1 because chisteps should have 1 fewer entry, namely the first one
+    print 'This value is seen at step(s):', bestmodels
+if sys.argv[2] == 'ensemble':
+    for i in xrange(len(chisteps)): 
+        if chisteps[i]==chibest:
+            bestmodels.append(i)
+    print 'This value is seen at step(s):', bestmodels
 top = bestmodels[0] 
 
 fig = plt.figure(figsize=(6,6))
@@ -193,7 +201,7 @@ if sys.argv[3] == 'M_D':
     plt.ylabel(r'log($M_D$ $[M_\oplus]$)', fontsize=18)
 if sys.argv[3] == 'R_in':
     plt.ylabel(r'$R_{in}$ [AU]', fontsize=18)
-plt.xticks(numpy.arange(xminmax[0],xminmax[1],0.05))
+plt.xticks(numpy.arange(xminmax[0],xminmax[1],0.1))
 
 
 #Buenzli's radius
