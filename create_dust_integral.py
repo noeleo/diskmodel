@@ -5,6 +5,7 @@ import numpy
 import math
 from scipy import integrate
 from scipy.interpolate import interp1d
+import matplotlib.pyplot as plt
 
 '''
 Here, we tabulate some integrals that we need for the disk model with astrosilicate grain opacities.
@@ -27,12 +28,16 @@ KL_flux = []
 line = f.readline()
 while line != '':
   # convert nanometers to meters
-  KL_lambda.append(float(line[4:12])*1e-9)
-  KL_flux.append(float(line[29:38]))*1e23
+  lamma = float(line[4:12])*1e-9
+  flux = float(line[29:38])*1e-3
+  # multiply by nu and divide by lamma
+  flux *= c_const/lamma**2
+  KL_lambda.append(lamma)
+  KL_flux.append(flux)
   line = f.readline()
 f.close()
 KL_lambda.append(1e4*1e-6)
-KL_flux.append(2.914e-13*1e23/1e-2)
+KL_flux.append(2.914e-13*1e-3*c_const/1e-2)
 KL_flux_function = interp1d(KL_lambda, KL_flux, bounds_error=False, fill_value=0)
 
 def calculateIncomingFlux(radius, lamma):
@@ -45,17 +50,12 @@ def calculatePlanckFunction(temperature, lamma):
   return numerator/denominator
 
 # create temperature fits file
+'''
 temp = numpy.arange(0,1000,1)
 hdu = pyfits.PrimaryHDU(temp)
 hdulist = pyfits.HDUList([hdu])
 hdulist.writeto('./dust/compiled_temperature.fits')
-
-#create radius fits file
-rad = [x*1.496e11 for x in numpy.arange(0,300,1)] #Sample with a step size of 1 AU
-hdu = pyfits.PrimaryHDU(rad)
-hdulist = pyfits.HDUList([hdu])
-hdulist.writeto('./dust/compiled_radii.fits')
-
+'''
 # start grain size fits file
 grains = []
 
@@ -79,17 +79,18 @@ for dirname, dirnames, filenames in os.walk('./dust'):
     qFunction = interp1d(lambder, q, bounds_error=False, fill_value=0) 
     lammax = max(lambder)
     lammin = min(lambder)
+    '''
     QB_integral_values = []
     for i in temp:
       QBval = integrate.quad(lambda l: qFunction(l)*calculatePlanckFunction(i, l), lammin, lammax)[0]
       QB_integral_values.append(QBval)
-    QB_integral.append(integral_values)
-    QF_integral_values = []
-    for i in rad:
-      QFval = integrate.quad(lambda l: qFunction(l)*calculateIncomingFlux(i, l), lammin, lammax)[0]
-      QF_integral_values.append(QFval)
+    QB_integral.append(QB_integral_values)
+    '''
+    rad = 50*1.496e11 
+    QFval = integrate.quad(lambda l: qFunction(l)*calculateIncomingFlux(rad, l), lammin, lammax)[0]
+    #print QFval, 3.839e26*.583/(4*math.pi*rad**2)
     QF_integral.append(QFval)
-		
+'''		
 #Save data into separate FITS files.
 np_lambda = numpy.array(lambder)
 hdu = pyfits.PrimaryHDU(np_lambda)
@@ -105,13 +106,14 @@ np_result = numpy.array(QB_integral)
 hdu = pyfits.PrimaryHDU(np_result)
 hdulist = pyfits.HDUList([hdu])
 hdulist.writeto('./dust/compiled_QBintegrals.fits')
-
+'''
 np_result = numpy.array(QF_integral)
 hdu = pyfits.PrimaryHDU(np_result)
 hdulist = pyfits.HDUList([hdu])
 hdulist.writeto('./dust/compiled_QFintegrals.fits')
-
+'''
 np_grains = numpy.array(grains)
 hdu = pyfits.PrimaryHDU(np_grains)
 hdulist = pyfits.HDUList([hdu])
 hdulist.writeto('./dust/compiled_grain_sizes.fits')
+'''

@@ -122,30 +122,39 @@ class Disk:
         #Read in Q*B table and associated arrays.
         compiled_temp = [float(x) for x in pyfits.open('./dust/compiled_temperature.fits')[0].data]
         compiled_grain_sizes = [float(x) for x in pyfits.open('./dust/compiled_grain_sizes.fits')[0].data]
-        compiled_integrals = pyfits.open('./dust/compiled_integrals.fits')[0].data
+        compiled_QBintegrals = pyfits.open('./dust/compiled_QBintegrals.fits')[0].data
+        compiled_QFintegrals = pyfits.open('./dust/compiled_QFintegrals.fits')[0].data
         
         #Sorting, since the arrays were generated in an arbitrary order.
         self.sorted_lambda = numpy.array([float(x) for x in pyfits.open('./dust/compiled_lambda.fits')[0].data])
-        self.sorted_integrals = numpy.array([y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_integrals))])
+        self.sorted_QBintegrals = numpy.array([y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_QBintegrals))])
+        self.sorted_QFintegrals = numpy.array([y for (x,y) in sorted(zip(compiled_grain_sizes,compiled_QFintegrals))])
         self.sorted_grain_sizes = numpy.array(sorted(compiled_grain_sizes))
         self.sorted_temp = numpy.array(compiled_temp)
         
         print 'Calculating T(r)...'
 
         #Interpolate between 2 closest grain sizes.  
-        self.temp_interp_funcs = [interp1d(self.sorted_grain_sizes,self.sorted_integrals[:,temp]) for temp in range(len(self.sorted_temp))]
-        self.integral_list = [f(self.grainSize) for f in self.temp_interp_funcs]
+        self.QB_interp_funcs = [interp1d(self.sorted_grain_sizes,self.sorted_QBintegrals[:,temp]) for temp in range(len(self.sorted_temp))]
+        self.QBintegral_list = [f(self.grainSize) for f in self.QB_interp_funcs]
 
         #Generate an estimate of T(r) based on the tabulated integrals.
-        self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
+        self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10)
         self.grain_temps = []
+        raw_integral = interp1d(self.sorted_grain_sizes, self.sorted_QFintegrals)(self.grainSize)
         for i in range(len(self.rad_steps)):
-            lhs = self.starLuminosity/(16*(math.pi**2)*(self.rad_steps[i]**2))  
-            integral_close = min(self.integral_list, key=lambda y: math.fabs(y-lhs))
-            integral_index = numpy.where(self.integral_list==integral_close)[0][0]
-            temperature = self.sorted_temp[integral_index]
+            #Scale integrals as 1/r^2.  The integrals were calculated with r = 50 AU.
+            lhs = raw_integral*(50*1.496e11/self.rad_steps[i])**2/4/math.pi
+            #print lhs, self.starLuminosity/(16*math.pi**2*self.rad_steps[i]**2)
+            QBintegral_close = min(self.QBintegral_list, key=lambda y: math.fabs(y-lhs))
+            QBintegral_index = numpy.where(self.QBintegral_list==QBintegral_close)[0][0]
+            temperature = self.sorted_temp[QBintegral_index]
             self.grain_temps.append(temperature)
-        self.temp_function = interp1d(self.rad_steps, self.grain_temps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
+        if len(self.rad_steps) > 1:
+            self.temp_function = interp1d(self.rad_steps, self.grain_temps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
+        if len(self.rad_steps) == 1:
+            def temp_function(self):
+                return self.grain_temps[0]        
         print 'Done!'
         
         # generate interpolation function
@@ -189,17 +198,19 @@ class Disk:
 
         print 'Calculating T(r)...'
         #Pick out the parts of the tabulated arrays relevant to this grain size.
-        self.temp_interp_funcs = [interp1d(self.sorted_grain_sizes,self.sorted_integrals[:,temp]) for temp in range(len(self.sorted_temp))]
-        self.integral_list = [f(self.grainSize) for f in self.temp_interp_funcs]
+        self.QBintegral_list = [f(self.grainSize) for f in self.QB_interp_funcs]
 
         #Generate an estimate of T(r) based on the tabulated integrals.
         self.rad_steps = numpy.arange(self.innerRadius,self.outerRadius,1.496e10) #Steps of 0.1 AU
         self.grain_temps = []
+        raw_integral = interp1d(self.sorted_grain_sizes, self.sorted_QFintegrals)(self.grainSize)
         for i in range(len(self.rad_steps)):
-            lhs = self.starLuminosity/(16*(math.pi**2)*(self.rad_steps[i]**2))  
-            integral_close = min(self.integral_list, key=lambda y: math.fabs(y-lhs))
-            integral_index = numpy.where(self.integral_list==integral_close)[0][0]
-            temperature = self.sorted_temp[integral_index]
+            #Scale integrals as 1/r^2.  The integrals were calculated with r = 50 AU.
+            lhs = raw_integral*(50*1.496e11/self.rad_steps[i])**2/4/math.pi
+            #print lhs, self.starLuminosity/(16*math.pi**2*self.rad_steps[i]**2)
+            QBintegral_close = min(self.QBintegral_list, key=lambda y: math.fabs(y-lhs))
+            QBintegral_index = numpy.where(self.QBintegral_list==QBintegral_close)[0][0]
+            temperature = self.sorted_temp[QBintegral_index]
             self.grain_temps.append(temperature)
         if len(self.rad_steps) > 1:
             self.temp_function = interp1d(self.rad_steps, self.grain_temps, bounds_error=False, fill_value = self.grain_temps[len(self.grain_temps)-1])
@@ -316,7 +327,7 @@ class Disk:
     def generateModel(self):
         self.generateAsteroids()
         # sample from .1 microns to 10^4 microns
-        x = numpy.arange(-7, -2, 0.001)
+        x = numpy.arange(-7, -2, 0.01)
         x = [10**power for power in x]
         y = [self.calculateFlux(lamma) for lamma in x]
         self.disk_lambda = self.convertToMicrons(x)
@@ -337,7 +348,7 @@ class Disk:
         return asteroidBlackbody
     
     def generateAsteroids(self):
-        x = numpy.arange(-7, -2, 0.001)
+        x = numpy.arange(-7, -2, 0.01)
         x = [10**power for power in x]
         y = [self.calculateAsteroidBelt(lamma) for lamma in x]
         self.asteroid_lambda = self.convertToMicrons(x)
