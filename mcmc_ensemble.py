@@ -27,7 +27,7 @@ if (len(sys.argv) == 2):
 #Set number of walkers and then number of trials for each.
 n_walkers = 100
 n_trials = 1000
-a = 2.2           #This is just an adjustable parameter that Foreman-Mackey et al., 2012 suggest should be 2.  My accept ratio was too high.
+a = 2.8           #This is just an adjustable parameter that Foreman-Mackey et al., 2012 suggest should be 2.  My accept ratio was too high.
     
 #Initialize the Ensemble.  These values are from a chi-by-eye
 innerRad0 = 68.

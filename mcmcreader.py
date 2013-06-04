@@ -148,6 +148,23 @@ print 'Power Law =', powerLawsteps[top],'+/-', powerLawsigma
 print 'Grain Efficiency =', grainEfficiencysteps[top], '+/-', grainEfficiencysigma
 print 'log(Belt Mass) =', beltMasssteps[top], '+/-', beltMasssigma
 
+#Calculate Autocorrelation Time for Each parameter
+if sys.argv[3] == 'acor':
+    def C_f(array,T):
+        avg = numpy.average(array)
+        M = len(array)
+        return sum([(array[T+m]-avg)*(array[m]-avg) for m in range(M-T)])/(M-T)
+    
+    def tau(array):
+        return 1 + 2*sum([C_f(array,T) for T in [i+1 for i in range(len(array)-1)]])/C_f(array,0)
+    
+    print 'Calculating autocorrelation times.'
+    taus = []
+    for param in [innerRadsteps,grainSizesteps,diskMasssteps,grainEfficiencysteps,beltMasssteps]:
+        taus.append(tau(param))
+    print 'Autocorrelation times for R_in, a, M_D, beta, and M_B:', taus
+    exit()
+
 #Implement IDL's smooth function
 def smooth(array, number):
     remainder = len(array) % number
@@ -213,8 +230,7 @@ plt.subplots_adjust(wspace=0.6, hspace=0.4)
 #Histograms
 plt.figure(2, figsize=(9,7))
 
-weighter = [1./length for dummy in chisteps[chop:]]
-histobars = 20
+histobars = 30
 
 #INNER RADIUS
 minIR = 55.0
@@ -231,27 +247,16 @@ plt.axvline(x=innerRadsteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 plt.axvline(x=62.1, ymin=0, ymax=100, color='c', linewidth=3)
 plt.axvline(x=60.4, ymin=0, ymax=100, color='c', linewidth=3)
 
-#Adding a vertical stripe for Buenzli's measurements.
-'''
-#This part, copied over from contour.py, doesn't work.  I can't add a subplot to a subplot.
-from matplotlib.patches import Rectangle
-ax = ax1.add_subplot(111)
-rectangle = Rectangle((-5,60.4), 10, 1.7, alpha=0.5, facecolor="grey")
-ax.add_patch(rectangle)
-plt.axhline(y=62.1, xmin=-5, xmax=5, color='grey', linewidth=2)
-plt.axhline(y=60.4, xmin=-5, xmax=5, color='grey', linewidth=2)
-'''
-
 #Tick Customization
-ticks1 = numpy.arange(55,85,5)
+ticks1 = numpy.arange(55,81,5)
 plt.xticks(ticks1)
 plt.yticks(numpy.arange(0,0.21,0.05))
 
+print 'Mode of Inner Radius =', bins1[numpy.where(numpy.array(n1)==max(numpy.array(n1)))], ', where bins are of size', bins1[1]-bins1[0]
 
 #GRAIN SIZE
-#Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
-minGS = 0.3
-maxGS = 0.8
+minGS = 0.1
+maxGS = 0.65
 grainSizesteps2 = [i for i in grainSizesteps[chop:] if i > minGS and i < maxGS]
 weighter2gs = [1./length for i in grainSizesteps2]
 
@@ -263,15 +268,15 @@ ax2.grid(True)
 plt.axvline(x=grainSizesteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 
 #Tick Customization
-ticks2 = numpy.arange(0.35,0.81,0.1)
+ticks2 = numpy.arange(0.1,0.71,0.1)
 plt.xticks(ticks2)
 plt.yticks(numpy.arange(0,0.17,0.04))
 
+print 'Mode of Grain Size =', bins2[numpy.where(numpy.array(n2)==max(numpy.array(n2)))], ', where bins are of size', bins2[1]-bins2[0]
 
 #DISK MASS
-#Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
-minDM = -3.3
-maxDM = -2.3
+minDM = -3.4
+maxDM = -2.5
 diskMasssteps2 = [i for i in diskMasssteps[chop:] if i > minDM and i < maxDM]
 weighter2dm = [1./length for i in diskMasssteps2]
 
@@ -283,15 +288,15 @@ ax3.grid(True)
 plt.axvline(x=diskMasssteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 
 #Tick Customization
-#ticks3 = numpy.arange(-5.0,-3.0,0.5)
-#plt.xticks(ticks3)
+ticks3 = numpy.arange(-3.4,-2.4,0.2)
+plt.xticks(ticks3)
 plt.yticks(numpy.arange(0,0.17,0.04))
 
+print 'Mode of Disk Mass =', bins3[numpy.where(numpy.array(n3)==max(numpy.array(n3)))], ', where bins are of size', bins3[1]-bins3[0]
 
 #GRAIN EFFICIENCY
-#Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
 minbeta = 0.2
-maxbeta = 0.7
+maxbeta = 0.65
 grainEfficiencysteps2 = [i for i in grainEfficiencysteps[chop:] if i > minbeta and i < maxbeta]
 weighter2ge = [1./length for i in grainEfficiencysteps2]
 
@@ -307,15 +312,16 @@ ticks4 = numpy.arange(0.2,0.71,0.1)
 plt.xticks(ticks4)
 plt.yticks(numpy.arange(0,0.21,0.05))
 
+print 'Mode of Grain Efficiency =', bins4[numpy.where(numpy.array(n4)==max(numpy.array(n4)))], ', where bins are of size', bins4[1]-bins4[0]
 
-ax5 = plt.subplot(325)
-
-#Axis customization.  To activate, uncomment and replace beltMasssteps[chop:] with beltMasssteps2, weighter with weighter2
+#BELT MASS
 minBM = -6.15
-beltMasssteps2 = [i for i in beltMasssteps[chop:] if i > minBM]
+maxBM = -5.7
+beltMasssteps2 = [i for i in beltMasssteps[chop:] if i > minBM and i < maxBM]
 weighter2bm = [1./length for i in beltMasssteps2]
 
-n5, bins5, patches5 = ax5.hist(beltMasssteps2, histobars, normed=0, weights=weighter2bm, facecolor='green', alpha=0.75)
+ax5 = plt.subplot(325)
+n5, bins5, patches5 = ax5.hist(beltMasssteps2, histobars, weights=weighter2bm, normed=0, facecolor='green', alpha=0.75)
 ax5.set_xlabel(r'log($M_B$ [$M_{\oplus}$])', fontsize=16)
 ax5.set_ylabel('Fraction', fontsize=16)
 ax5.grid(True)
@@ -324,13 +330,13 @@ plt.axvline(x=beltMasssteps[top], ymin=0, ymax=100, color='k', linewidth=3)
 #Tick Customization
 ticks5 = numpy.arange(-6.2,-5.65,0.1)
 plt.xticks(ticks5)
-plt.yticks(numpy.arange(0,0.21,0.05))
+plt.yticks(numpy.arange(0,0.17,0.04))
+
+print 'Mode of Belt Mass =', bins5[numpy.where(numpy.array(n5)==max(numpy.array(n5)))], ', where bins are of size', bins5[1]-bins5[0]
 
 plt.subplots_adjust(wspace=0.4, hspace=0.7)
-#plt.suptitle('Probability Distributions from MCMC', fontsize=18)
 
-#plt.savefig('.eps')
-
+#SED
 plt.figure(3)
 disk = Disk(innerRadsteps[top], outerRadsteps[top], 10**grainSizesteps[top], 10**diskMasssteps[top], powerLawsteps[top], grainEfficiencysteps[top], 10**beltMasssteps[top])
 disk.plotSED()

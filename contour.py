@@ -80,14 +80,14 @@ if sys.argv[2] == 'mh':
 
 #Make Boxes
 xaxis = grainSizesteps
-xminmax = [0.25,0.8]
+xminmax = [0.0,0.7]
 
 if sys.argv[3] == 'beta':
     yaxis = grainEfficiencysteps
     yminmax = [0.2,0.7] 
 if sys.argv[3] == 'M_D':
     yaxis = diskMasssteps
-    yminmax = [-3.4,-2.2] 
+    yminmax = [-3.6,-2.3] 
 if sys.argv[3] == 'R_in':
     yaxis = innerRadsteps
     yminmax = [55,80] #Inner Radius

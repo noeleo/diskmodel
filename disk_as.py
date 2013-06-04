@@ -135,7 +135,7 @@ class Disk:
         print 'Calculating T(r)...'
 
         #Interpolate between 2 closest grain sizes.  
-        self.QB_interp_funcs = [interp1d(self.sorted_grain_sizes,self.sorted_QBintegrals[:,temp]) for temp in range(len(self.sorted_temp))]
+        self.QB_interp_funcs = [interp1d(self.sorted_grain_sizes,self.sorted_QBintegrals[:,temp], bounds_error=False, fill_value = 0) for temp in range(len(self.sorted_temp))]
         self.QBintegral_list = [f(self.grainSize) for f in self.QB_interp_funcs]
 
         #Generate an estimate of T(r) based on the tabulated integrals.
@@ -145,7 +145,6 @@ class Disk:
         for i in range(len(self.rad_steps)):
             #Scale integrals as 1/r^2.  The integrals were calculated with r = 50 AU.
             lhs = raw_integral*(50*1.496e11/self.rad_steps[i])**2/4/math.pi
-            #print lhs, self.starLuminosity/(16*math.pi**2*self.rad_steps[i]**2)
             QBintegral_close = min(self.QBintegral_list, key=lambda y: math.fabs(y-lhs))
             QBintegral_index = numpy.where(self.QBintegral_list==QBintegral_close)[0][0]
             temperature = self.sorted_temp[QBintegral_index]
@@ -207,7 +206,6 @@ class Disk:
         for i in range(len(self.rad_steps)):
             #Scale integrals as 1/r^2.  The integrals were calculated with r = 50 AU.
             lhs = raw_integral*(50*1.496e11/self.rad_steps[i])**2/4/math.pi
-            #print lhs, self.starLuminosity/(16*math.pi**2*self.rad_steps[i]**2)
             QBintegral_close = min(self.QBintegral_list, key=lambda y: math.fabs(y-lhs))
             QBintegral_index = numpy.where(self.QBintegral_list==QBintegral_close)[0][0]
             temperature = self.sorted_temp[QBintegral_index]
