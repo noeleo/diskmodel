@@ -3,14 +3,13 @@ from numpy import *
 import matplotlib.pyplot as plt
 import sys
 from disk_as import Disk
-from matplotlib.patches import Rectangle
+from visgen import VisibilityGenerator
 import pylab
 
 '''
 A more elegantly coded version of mcmcreader, which I got sick of.
 This is the presentation part of the mcmc_ensemble code using data saved into a text file.
-
-Ex:  python mcmcreader.py MCMC_Chains/mcmc_ensemble1113
+Use the confusingly named mcmc_analyze to call it.
 '''
 
 class Ensemble:
@@ -32,25 +31,31 @@ class Ensemble:
             ensemble[int(info[1])].append(array(info[2:self.n_param+4]))
             line = f.readline()
         f.close()
-        self.ensemble = array(ensemble)
+        maxtrial = len(ensemble[self.n_walkers - 1])
+        self.ensemble = array(ensemble)[:,:,:maxtrial]
         self.chop = int(chop) #Ignore the first part of the ensemble.
         
     def Quick_Stats(self):
+        self.Means = []
+        self.Medians = []
+        self.stddevs = []
         for param in range(self.n_param):
-            print 'For', self.parameters[param], ':  Mean =', average(self.ensemble[:,self.chop:,param]), \
-            ', Median =', median(self.ensemble[:,self.chop:,param]), ', STD =', std(self.ensemble[:,self.chop:,param])
-        print 'Acceptance fraction =', average(self.ensemble[:,self.chop:,self.n_param+1])
-
+            self.Means.append(average(self.ensemble[:,self.chop:,param]))
+            self.Medians.append(median(self.ensemble[:,self.chop:,param]))
+            self.stddevs.append(std(self.ensemble[:,self.chop:,param]))
+        self.accept = average(self.ensemble[:,self.chop:,self.n_param+1])
+       
     def Find_Best_Fit(self):
         chi_min = self.ensemble[:,:,self.n_param].min()
         mindex = where(self.ensemble[:,:,self.n_param] == chi_min)
         print 'The minimum chi^2 was', chi_min, 'which occurred at walker', mindex[0], 'trial(s)', mindex[1]
         self.bestmodel = self.ensemble[mindex[0][0],mindex[1][0],0:self.n_param]
+        print 'This model has parameters', [float(x) for x in self.bestmodel]
     
     def Sigma_Calc(self):
         self.sigmas = []
         for param in arange(self.n_param):
-            deltas = [abs(x - self.bestmodel[param]) for x in self.ensemble[:,self.chop:,param].ravel()]
+            deltas = [abs(x - self.Modes[param]) for x in self.ensemble[:,self.chop:,param].ravel()]
             deltas.sort()
             self.sigmas.append(deltas[int(0.6827*len(deltas))])
         
@@ -58,7 +63,7 @@ class Ensemble:
         bins = []
         bar_heights = []
         for param in arange(self.n_param):
-            range = [self.bestmodel[param] - 5*self.sigmas[param], self.bestmodel[param] + 5*self.sigmas[param]]
+            range = [self.Medians[param] - 5*self.stddevs[param], self.Medians[param] + 5*self.stddevs[param]]
             histoheights, histobins = histogram(self.ensemble[:,self.chop:,param], bins=n_bins, normed=False, range=range)
             bins.append(histobins)
             bar_heights.append(histoheights)
@@ -93,7 +98,6 @@ class Ensemble:
         plt.subplots_adjust(wspace=0.6, hspace=0.4)
         
     def Histo_Plot(self, n_bins):
-        #I highly doubt this works...
         histo = self.Binner(n_bins)
         plt.figure(2, figsize=(9,7))
         f_index = 1
@@ -108,36 +112,68 @@ class Ensemble:
                 plt.axvline(x=60.4, ymin=0, ymax=100, color='c', linewidth=3)
             plt.xlabel(self.latex_params[param], fontsize=16)
             plt.ylabel('Fraction', fontsize=16)
-            plt.yticks(arange(0,0.17,0.04))
+            plt.yticks(arange(0,0.13,0.04))
             f_index += 1
         plt.subplots_adjust(wspace=0.4, hspace=0.7)
 
     def SED_Plot(self):
         plt.figure(3)
-        disk = Disk(self.bestmodel[0], self.bestmodel[1], 10**self.bestmodel[2], 10**self.bestmodel[3], self.bestmodel[4], self.bestmodel[5], 10**self.bestmodel[6])
+        disk = Disk(self.Modes[0], self.Modes[1], 10**self.Modes[2], 10**self.Modes[3], self.Modes[4], self.Modes[5], 10**self.Modes[6])
         disk.plotSED()
         print 'SED chi^2 =', disk.computeChiSquared()
-        print 'T_avg =', disk.calculateGrainTemperature(0.5*(self.bestmodel[0]+self.bestmodel[1])*1.496e11)
+        print 'T_avg =', disk.calculateGrainTemperature(0.5*(self.Modes[0]+self.Modes[1])*1.496e11)
+        print 'Warm Belt Flux at 1.3mm = ', disk.get_belt_flux(), 'Jy'
     
-    def Modes(self):
-        mode_finder = self.Binner(30)
-        self.modes = []
+    def Mode_Calc(self):
+        mode_finder = self.Binner(40)
+        modes = []
         for param in arange(self.n_param):
             bins = mode_finder[0][param]
             heights = mode_finder[1][param]
-            self.modes.append(bins[where(array(heights)==array(heights).max())])
+            modes.append(bins[where(array(heights)==array(heights).max())])
+        self.Modes = [float(x) for x in modes]
+        
+    def Flux_Calc(self):
+        print 'Calculating list of fluxes...'
+        flux_disk = Disk(self.Modes[0], self.Modes[1], 10**self.Modes[2], 10**self.Modes[3], self.Modes[4], self.Modes[5], 10**self.Modes[6])
+        self.mode_flux = flux_disk.calculateFlux(1.3e-3)*1.3e-3/2.998e8
+        flux_array = []
+        for walker in arange(len(self.ensemble[:,0,0].ravel())):
+            for trial in arange(len(self.ensemble[0,self.chop:,0].ravel())):
+                flux_disk.changeParameters(self.ensemble[walker,trial,0], self.ensemble[walker,trial,1], 10**self.ensemble[walker,trial,2], \
+                                           10**self.ensemble[walker,trial,3], self.ensemble[walker,trial,4], self.ensemble[walker,trial,5], \
+                                           10**self.ensemble[walker,trial,6])
+                flux = flux_disk.calculateFlux(1.3e-3)*1.3e-3/2.998e8 #Because calculateFlux returns Jy*Hz
+                flux_array.append(flux)
+        print 'Getting sigma from posterior distribution...'
+        deltas=[abs(x-self.mode_flux) for x in flux_array]
+        deltas.sort()
+        self.flux_sig = deltas[int(0.6827*len(deltas))]
+        print 'Sigma from posterior = ', self.flux_sig
+    
+    def Mode_Chi_Squared(self):
+        disk = Disk(self.Modes[0], self.Modes[1], 10**self.Modes[2], 10**self.Modes[3], self.Modes[4], self.Modes[5], 10**self.Modes[6])
+        vis = VisibilityGenerator(512, 84.3, 70.3, 'mcmc_analysis.fits')
+        sedchi = disk.computeChiSquared()
+        vischi = vis.computeChiSquared(disk)
+        return sedchi + vischi
     
     def Analyze(self):
         print '-------------------------------------------------'
         self.Quick_Stats()
-        print '-------------------------------------------------'
+        for param in range(self.n_param):
+            print 'For', self.parameters[param], ':  Mean =', self.Means[param], \
+            ', Median =', self.Medians[param], ', STD =', self.stddevs[param]
+        print 'Acceptance fraction =', self.accept
         self.Find_Best_Fit()
         print '-------------------------------------------------'
+        self.Mode_Calc()
         self.Sigma_Calc()
-        self.Modes()
+        print 'Finally, using the mode and the 68% of models around it,'
         for param in range(self.n_param):
-            print self.parameters[param], '=', self.bestmodel[param], '+/-', self.sigmas[param]
-        print 'And for the modes, we have', [float(x) for x in self.modes]
+            print self.parameters[param], '=', self.Modes[param], '+/-', self.sigmas[param]
+
+    def Make_Plots(self):
         self.Chain_Plot()
         self.Histo_Plot(40)
         self.SED_Plot()

@@ -6,7 +6,7 @@ import math
 import numpy
 import matplotlib.pyplot as plt
 import sys
-from disk import Disk
+from disk_as import Disk
 
 #Read Data
 if sys.argv[2] == 'ensemble':
