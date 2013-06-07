@@ -230,7 +230,7 @@ plt.subplots_adjust(wspace=0.6, hspace=0.4)
 #Histograms
 plt.figure(2, figsize=(9,7))
 
-histobars = 30
+histobars = 20
 
 #INNER RADIUS
 minIR = 55.0
