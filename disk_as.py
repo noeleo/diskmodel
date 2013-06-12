@@ -416,7 +416,7 @@ class Disk:
                 chi_squared += ((model_flux[i]-actual_flux[i])/error[i])**2
         # degrees of freedom = [number of samples] - [number parameters to fit]
         # TEMPO: parameters 6 normally
-        dof = numToFit - 5
+        #dof = numToFit - 5
         chi_squared = chi_squared#/dof
         return chi_squared
     
@@ -451,7 +451,20 @@ class Disk:
         lambda_peak = max[0]
         T = 2.898e-3/lambda_peak
         return T
-                
+    
+    def calcRadeff(self):
+        F_r = []
+        lamma = self.c_const/235.5e9
+        r_array = [self.innerRadius + (self.outerRadius-self.innerRadius)/20*i for i in range(20)]
+        for r in r_array:
+            fluxIntegral = integrate.quad(lambda radius: radius*self.calculateGrainDistribution(radius)
+                                                     *self.calculateGrainBlackbody(radius, lamma), self.innerRadius, r,
+                                                     )[0]
+            Q = self.qFunction(lamma)
+            F_r.append(Q*2*math.pi*fluxIntegral*1e26*(self.grainSize**2)/(self.starDistance**2))
+        F_tot = F_r[-1]
+        F_inverse = interp1d(F_r, r_array)
+        return F_inverse(F_tot/2)
         
     '''
     For debugging

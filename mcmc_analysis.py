@@ -53,11 +53,20 @@ class Ensemble:
         print 'This model has parameters', [float(x) for x in self.bestmodel]
     
     def Sigma_Calc(self):
-        self.sigmas = []
-        for param in arange(self.n_param):
-            deltas = [abs(x - self.Modes[param]) for x in self.ensemble[:,self.chop:,param].ravel()]
-            deltas.sort()
-            self.sigmas.append(deltas[int(0.6827*len(deltas))])
+        self.sigmas = zeros(self.n_param)
+        for param in [0,1,2,3,5,6]:
+            #deltas = [abs(x - self.Modes[param]) for x in self.ensemble[:,self.chop:,param].ravel()]
+            #deltas.sort()
+            #sigma=deltas[int(0.6827*len(deltas))]
+            deltas_ge = [x-self.Modes[param] for x in self.ensemble[:,self.chop:,param].ravel() if x >= self.Modes[param]]
+            deltas_lt = [self.Modes[param]-x for x in self.ensemble[:,self.chop:,param].ravel() if x < self.Modes[param]]
+            deltas_ge.sort()
+            deltas_lt.sort()
+            sigma_plus=deltas_ge[int(0.6827*len(deltas_ge))]
+            sigma_minus=deltas_lt[int(0.6827*len(deltas_lt))]
+            print 'For', self.parameters[param], ', sigma_plus =', sigma_plus, 'and sigma_minus =', sigma_minus
+            sigma = mean([sigma_plus, sigma_minus])
+            self.sigmas[param] = sigma
         
     def Binner(self, n_bins):
         bins = []
@@ -139,7 +148,7 @@ class Ensemble:
         self.mode_flux = flux_disk.calculateFlux(1.3e-3)*1.3e-3/2.998e8
         flux_array = []
         for walker in arange(len(self.ensemble[:,0,0].ravel())):
-            for trial in arange(len(self.ensemble[0,self.chop:,0].ravel())):
+            for trial in arange(len(self.ensemble[0,self.chop:,0].ravel()))+self.chop:
                 flux_disk.changeParameters(self.ensemble[walker,trial,0], self.ensemble[walker,trial,1], 10**self.ensemble[walker,trial,2], \
                                            10**self.ensemble[walker,trial,3], self.ensemble[walker,trial,4], self.ensemble[walker,trial,5], \
                                            10**self.ensemble[walker,trial,6])
@@ -157,6 +166,10 @@ class Ensemble:
         sedchi = disk.computeChiSquared()
         vischi = vis.computeChiSquared(disk)
         return sedchi + vischi
+    
+    def Get_Rad_eff(self):
+        disk = Disk(self.Modes[0], self.Modes[1], 10**self.Modes[2], 10**self.Modes[3], self.Modes[4], self.Modes[5], 10**self.Modes[6])
+        print 'R_eff =', disk.calcRadeff()
     
     def Analyze(self):
         print '-------------------------------------------------'
@@ -176,5 +189,5 @@ class Ensemble:
     def Make_Plots(self):
         self.Chain_Plot()
         self.Histo_Plot(40)
-        self.SED_Plot()
+        #self.SED_Plot()
         plt.show()

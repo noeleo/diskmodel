@@ -104,6 +104,8 @@ for trial in range(n_trials):
             zz = ((a - 1.)*random.uniform(0.,1.) + 1.)**2/a
             parameter_difference = [ensemble[random_other][trial][param]-ensemble[walker][trial][param] for param in range(len(ensemble[walker][trial])-2)] #-2 to exclude chi2, acceptance
             proposition = [ensemble[walker][trial][param] + zz*parameter_difference[param] for param in range(len(ensemble[walker][trial])-2)]
+        proposition[1] = proposition[0]*1.05 #This line is only needed because of rounding errors, if you think about it.  
+
         print "Proposition:", proposition
         #Calculate chi^2.
         disk.changeParameters(proposition[0], proposition[1], 10.**(proposition[2]), 10.**(proposition[3]), \

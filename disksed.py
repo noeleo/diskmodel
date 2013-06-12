@@ -13,6 +13,6 @@ else:
     params = sys.argv[1:8]
 disk = Disk(*params)
 #print 'Calculating chi-squared...'
-#print 'Chi-squared:', disk.computeChiSquared()
+print 'Chi-squared:', disk.computeChiSquared()
 print 'Now plotting...'
 disk.plotSED()
